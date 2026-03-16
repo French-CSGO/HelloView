@@ -1,0 +1,501 @@
+/* Panel admin HelloView — menu latéral + pages */
+
+:root {
+  --admin-bg: #0f0e17;
+  --admin-surface: #1a1926;
+  --admin-border: #2d2a3d;
+  --admin-text: #e8e6f0;
+  --admin-muted: #8b8799;
+  --admin-accent: #3f8cff;
+  --admin-accent-hover: #5a9cff;
+  --admin-danger: #e05c5c;
+  --admin-success: #4caf82;
+  --admin-font: 'Roboto', sans-serif;
+  --admin-font-heading: 'Rajdhani', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--admin-font);
+  font-size: 15px;
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  min-height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Login */
+.admin-login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 2rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+}
+
+.admin-login-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--admin-font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.admin-login-desc {
+  margin: 0 0 1.5rem;
+  color: var(--admin-muted);
+  font-size: 0.9rem;
+}
+
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-login-input {
+  padding: 0.65rem 0.9rem;
+  font-size: 1rem;
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+
+.admin-login-input::placeholder {
+  color: var(--admin-muted);
+}
+
+.admin-login-input:focus {
+  outline: none;
+  border-color: var(--admin-accent);
+}
+
+.admin-login-btn {
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--admin-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.admin-login-btn:hover {
+  background: var(--admin-accent-hover);
+}
+
+.admin-login-error {
+  margin: 1rem 0 0;
+  color: var(--admin-danger);
+  font-size: 0.9rem;
+}
+
+/* App layout */
+.admin-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--admin-surface);
+  border-right: 1px solid var(--admin-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-sidebar-header {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-sidebar-logo {
+  display: block;
+  font-family: var(--admin-font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  text-decoration: none;
+}
+
+.admin-sidebar-logo:hover {
+  color: var(--admin-accent);
+}
+
+.admin-sidebar-label {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--admin-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-sidebar-nav {
+  padding: 0.75rem 0;
+  flex: 1;
+}
+
+.admin-nav-item {
+  display: block;
+  padding: 0.6rem 1rem;
+  color: var(--admin-muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.15s, background 0.15s;
+}
+
+.admin-nav-item:hover {
+  color: var(--admin-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-nav-item-active {
+  color: var(--admin-accent);
+  font-weight: 500;
+}
+
+.admin-sidebar-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-sidebar-footer .admin-nav-item {
+  margin-bottom: 0.5rem;
+}
+
+.admin-logout-btn {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: var(--admin-muted);
+  background: transparent;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-logout-btn:hover {
+  color: var(--admin-danger);
+  border-color: var(--admin-danger);
+}
+
+/* Main content */
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.admin-main-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.admin-logout-btn-header {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.admin-main .admin-page {
+  flex: 1;
+  padding: 1.5rem 2rem;
+}
+
+.admin-page-title {
+  margin: 0 0 1.25rem;
+  font-family: var(--admin-font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.admin-toolbar {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-search {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+
+.admin-sort-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--admin-muted);
+}
+
+.admin-sort {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-search::placeholder {
+  color: var(--admin-muted);
+}
+
+.admin-search:focus {
+  outline: none;
+  border-color: var(--admin-accent);
+}
+
+.admin-message {
+  margin: 0;
+  color: var(--admin-muted);
+}
+
+.admin-error {
+  color: var(--admin-danger);
+}
+
+/* Players list */
+.admin-players-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-player-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+}
+
+.admin-player-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--admin-bg);
+  flex-shrink: 0;
+}
+
+.admin-player-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--admin-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--admin-muted);
+  flex-shrink: 0;
+}
+
+.admin-player-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-player-name {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.admin-player-meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--admin-muted);
+}
+
+.admin-player-steamid {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
+.admin-player-upload {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-delete-avatar-btn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--admin-danger);
+  background: transparent;
+  border: 1px solid var(--admin-danger);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-delete-avatar-btn:hover {
+  background: rgba(224, 92, 92, 0.1);
+}
+
+.admin-delete-avatar-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-player-upload input[type="file"] {
+  font-size: 0.85rem;
+  color: var(--admin-muted);
+  max-width: 180px;
+}
+
+.admin-upload-btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  color: #fff;
+  background: var(--admin-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-upload-btn:hover {
+  background: var(--admin-accent-hover);
+}
+
+.admin-upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-upload-status {
+  font-size: 0.8rem;
+  color: var(--admin-success);
+}
+
+.admin-upload-status.error {
+  color: var(--admin-danger);
+}
+
+/* Teams list */
+.admin-page.hidden {
+  display: none !important;
+}
+
+.admin-teams-wrap {
+  margin-top: 0.5rem;
+}
+
+.admin-teams-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-team-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+}
+
+.admin-team-logo-wrap {
+  flex-shrink: 0;
+}
+
+.admin-team-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--admin-bg);
+}
+
+.admin-team-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.admin-team-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-team-name {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.admin-team-upload {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-delete-logo-btn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--admin-danger);
+  background: transparent;
+  border: 1px solid var(--admin-danger);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-delete-logo-btn:hover {
+  background: rgba(224, 92, 92, 0.1);
+}

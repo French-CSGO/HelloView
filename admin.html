@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — HelloView</title>
+  <link rel="icon" href="hello26.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div id="admin-login-wrap" class="admin-login-wrap">
+    <div class="admin-login-card">
+      <h1 class="admin-login-title">Admin Tournoi</h1>
+      <p class="admin-login-desc">Mot de passe requis pour accéder au panel.</p>
+      <form id="admin-login-form" class="admin-login-form">
+        <input type="password" id="admin-password" name="password" class="admin-login-input" placeholder="Mot de passe" autocomplete="current-password" required>
+        <button type="submit" class="admin-login-btn">Connexion</button>
+      </form>
+      <p id="admin-login-error" class="admin-login-error hidden"></p>
+    </div>
+  </div>
+
+  <div id="admin-app" class="admin-app hidden">
+    <aside class="admin-sidebar" aria-label="Menu admin">
+      <div class="admin-sidebar-header">
+        <a href="/" class="admin-sidebar-logo">HelloView</a>
+        <span class="admin-sidebar-label">Admin</span>
+      </div>
+      <nav class="admin-sidebar-nav">
+        <a href="#joueurs" class="admin-nav-item admin-nav-item-active" data-page="joueurs">Joueurs</a>
+        <a href="#equipes" class="admin-nav-item" data-page="equipes">Équipes</a>
+      </nav>
+      <div class="admin-sidebar-footer">
+        <a href="/" class="admin-nav-item">Retour au site</a>
+        <button type="button" class="admin-logout-btn" id="admin-logout">Déconnexion</button>
+      </div>
+    </aside>
+    <main class="admin-main">
+      <header class="admin-main-header">
+        <button type="button" class="admin-logout-btn admin-logout-btn-header" id="admin-logout-header" aria-label="Se déconnecter">Déconnexion</button>
+      </header>
+      <div id="admin-page-joueurs" class="admin-page">
+        <h1 class="admin-page-title">Joueurs</h1>
+        <div class="admin-toolbar">
+          <input type="search" id="admin-search-players" class="admin-search" placeholder="Rechercher un joueur (nom, équipe, Steam ID…)" aria-label="Rechercher">
+          <label class="admin-sort-label">
+            <span>Trier par</span>
+            <select id="admin-sort-players" class="admin-sort" aria-label="Trier les joueurs">
+              <option value="name-asc">Nom (A → Z)</option>
+              <option value="name-desc">Nom (Z → A)</option>
+              <option value="photo-yes">Avec photo d’abord</option>
+              <option value="photo-no">Sans photo d’abord</option>
+              <option value="team-asc">Équipe (A → Z)</option>
+              <option value="team-desc">Équipe (Z → A)</option>
+            </select>
+          </label>
+        </div>
+        <div class="admin-players-wrap">
+          <p id="admin-players-loading" class="admin-message">Chargement…</p>
+          <p id="admin-players-error" class="admin-message admin-error hidden"></p>
+          <ul id="admin-players-list" class="admin-players-list hidden"></ul>
+        </div>
+      </div>
+      <div id="admin-page-equipes" class="admin-page hidden">
+        <h1 class="admin-page-title">Équipes</h1>
+        <div class="admin-toolbar">
+          <input type="search" id="admin-search-teams" class="admin-search" placeholder="Rechercher une équipe…" aria-label="Rechercher">
+        </div>
+        <div class="admin-teams-wrap">
+          <p id="admin-teams-loading" class="admin-message">Chargement…</p>
+          <p id="admin-teams-error" class="admin-message admin-error hidden"></p>
+          <ul id="admin-teams-list" class="admin-teams-list hidden"></ul>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

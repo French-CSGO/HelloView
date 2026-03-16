@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brackets — Hello!Nexen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="hello26.png" type="image/png">
+  <link rel="stylesheet" href="common.css">
+  <link rel="stylesheet" href="brackets.css">
+</head>
+<body>
+  <header class="header header-brackets" id="brackets-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="/" class="header-link">← Dashboard</a>
+        <h1 class="logo">Brackets</h1>
+      </div>
+      <div class="header-right">
+        <div class="brackets-admin">
+          <button type="button" class="btn btn-admin" id="btn-admin" aria-pressed="false">Admin Tournoi</button>
+          <button type="button" class="btn btn-logout hidden" id="btn-logout">Déconnexion</button>
+        </div>
+        <img src="hello26.png" alt="Hello!Nexen Championship" class="header-logo" width="120" height="48">
+      </div>
+    </div>
+  </header>
+
+  <main class="brackets-main">
+    <nav class="brackets-tabs" role="tablist">
+      <button type="button" class="tab" role="tab" id="tab-swiss" aria-selected="true">Swiss (32 → Elite / Amateur)</button>
+      <button type="button" class="tab" role="tab" id="tab-elite" aria-selected="false">Arbre Elite (16)</button>
+      <button type="button" class="tab" role="tab" id="tab-amateur" aria-selected="false">Arbre Amateur (16)</button>
+    </nav>
+
+    <section class="brackets-panel" id="panel-swiss" role="tabpanel" aria-labelledby="tab-swiss">
+      <p class="brackets-desc">Swiss 32 équipes · 3 victoires = qualifié, 3 défaites = éliminé · 5 rondes max · Appariement par bilan (même W-L).</p>
+      <div class="swiss-views">
+        <button type="button" class="swiss-view-tab active" id="swiss-tab-matches" aria-pressed="true">Rounds</button>
+        <button type="button" class="swiss-view-tab" id="swiss-tab-flux" aria-pressed="false">Flux</button>
+        <button type="button" class="swiss-view-tab" id="swiss-tab-parcours" aria-pressed="false">Qualifications</button>
+      </div>
+      <div class="swiss-matches-view" id="swiss-matches-view">
+        <div class="swiss-grid" id="swiss-grid"></div>
+      </div>
+      <div class="swiss-flux-view hidden" id="swiss-flux-view">
+        <div class="swiss-flux" id="swiss-flux"></div>
+      </div>
+      <div class="swiss-parcours-view hidden" id="swiss-parcours-view">
+        <div class="parcours-table-wrap">
+          <table class="parcours-table" id="parcours-table"></table>
+        </div>
+      </div>
+    </section>
+
+    <section class="brackets-panel hidden" id="panel-elite" role="tabpanel" aria-labelledby="tab-elite">
+      <p class="brackets-desc">Élimination directe · 8e, quarts, demies, finale</p>
+      <div class="bracket-panel-elim-wrap">
+        <div class="bracket-row-upper">
+          <div class="bracket-block bracket-block-upper">
+            <div class="bracket-vertical-title" aria-hidden="true">Upper Bracket</div>
+            <div class="bracket-tree" id="elite-tree"></div>
+          </div>
+          <div class="bracket-grand-finale-wrap" id="elite-grand-finale"></div>
+        </div>
+        <div class="bracket-block bracket-block-lower">
+          <div class="bracket-vertical-title bracket-vertical-title-lower" aria-hidden="true">Lower Bracket (perdants 8e)</div>
+          <div class="bracket-tree bracket-tree-lower" id="elite-lower-tree"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="brackets-panel hidden" id="panel-amateur" role="tabpanel" aria-labelledby="tab-amateur">
+      <p class="brackets-desc">Élimination directe · 8e, quarts, demies, finale</p>
+      <div class="bracket-panel-elim-wrap">
+        <div class="bracket-row-upper">
+          <div class="bracket-block bracket-block-upper">
+            <div class="bracket-vertical-title" aria-hidden="true">Upper Bracket</div>
+            <div class="bracket-tree" id="amateur-tree"></div>
+          </div>
+          <div class="bracket-grand-finale-wrap" id="amateur-grand-finale"></div>
+        </div>
+        <div class="bracket-block bracket-block-lower">
+          <div class="bracket-vertical-title bracket-vertical-title-lower" aria-hidden="true">Lower Bracket (perdants 8e)</div>
+          <div class="bracket-tree bracket-tree-lower" id="amateur-lower-tree"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal modal-edit-match" role="dialog" aria-labelledby="modal-title">
+      <h2 class="modal-title" id="modal-title">Éditer le match</h2>
+      <form class="modal-form" id="modal-form">
+        <input type="hidden" id="edit-section">
+        <input type="hidden" id="edit-roundIndex">
+        <input type="hidden" id="edit-matchIndex">
+        <input type="hidden" id="edit-lowerBracket">
+        <input type="hidden" id="edit-teamA">
+        <input type="hidden" id="edit-teamB">
+        <input type="hidden" id="edit-winnerValue">
+        <input type="hidden" id="edit-demoId">
+        <label class="modal-label">Match (base csdemo) <span class="modal-label-desc">Les équipes et le vainqueur viennent du demo.</span></label>
+        <select id="edit-demoSelect" class="modal-select" aria-describedby="edit-demo-hint"><option value="">— Aucun —</option></select>
+        <p class="edit-demo-hint hidden" id="edit-demo-hint"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="modal-cancel">Annuler</button>
+          <button type="submit" class="btn btn-save">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="login-overlay">
+    <div class="modal" role="dialog" aria-labelledby="login-title">
+      <h2 class="modal-title" id="login-title">Connexion admin</h2>
+      <form class="modal-form" id="login-form">
+        <label>Mot de passe <input type="password" id="login-password" placeholder="Mot de passe"></label>
+        <p class="login-error hidden" id="login-error"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="login-cancel">Annuler</button>
+          <button type="submit" class="btn btn-save">Valider</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="overlay" id="match-overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title" hidden>
+    <div class="overlay-backdrop" id="overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-match">
+      <header class="overlay-header overlay-header-match">
+        <h2 class="overlay-title" id="overlay-title">Détail du match</h2>
+        <div class="overlay-header-score-line" id="overlay-header-score-line"></div>
+        <button type="button" class="overlay-close" id="overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="overlay-match-meta" id="overlay-match-meta"></div>
+      <div class="overlay-match-teams" id="overlay-match-teams"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="team-overlay" role="dialog" aria-modal="true" aria-labelledby="team-overlay-title" hidden>
+    <div class="overlay-backdrop" id="team-overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-team">
+      <header class="overlay-header">
+        <h2 class="overlay-title" id="team-overlay-title">Détail équipe</h2>
+        <button type="button" class="overlay-close" id="team-overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="team-overlay-hero" id="team-overlay-hero">
+        <div class="team-overlay-logo-wrap" id="team-overlay-logo-wrap"></div>
+        <h3 class="team-overlay-team-name" id="team-overlay-team-name"></h3>
+      </div>
+      <div class="team-overlay-body">
+        <div class="team-overlay-summary" id="team-overlay-summary"></div>
+        <div class="team-overlay-players">
+          <h3 class="team-overlay-section-title">Joueurs</h3>
+          <div class="team-overlay-players-wrap" id="team-overlay-players-list"></div>
+        </div>
+        <div class="team-overlay-matches">
+          <h3 class="team-overlay-section-title">Matchs</h3>
+          <div class="team-overlay-matches-list" id="team-overlay-matches-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="player-overlay" role="dialog" aria-modal="true" aria-labelledby="player-overlay-title" hidden>
+    <div class="overlay-backdrop" id="player-overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-player">
+      <header class="overlay-header">
+        <h2 class="overlay-title" id="player-overlay-title">Détail joueur</h2>
+        <button type="button" class="overlay-close" id="player-overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="player-overlay-hero" id="player-overlay-hero">
+        <div class="player-overlay-identity" id="player-overlay-identity">
+          <div class="player-overlay-avatar-wrap" id="player-overlay-avatar-wrap"></div>
+          <div class="player-overlay-name-row">
+            <h3 class="player-overlay-name" id="player-overlay-name"></h3>
+          </div>
+          <p class="player-overlay-team" id="player-overlay-team"></p>
+        </div>
+        <div class="player-overlay-gauges">
+          <div class="player-gauge rating-gauge grafana-gauge" id="player-gauge-rating">
+            <div class="grafana-gauge-svg-wrap">
+              <svg class="grafana-gauge-svg" viewBox="0 0 120 100" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <path class="grafana-gauge-track" d="M 20 55 A 40 40 0 0 1 100 55" fill="none" stroke-width="10" stroke-linecap="round"/>
+                <path class="grafana-gauge-value-arc" id="grafana-gauge-value-arc" d="M 20 55 A 40 40 0 0 1 100 55" fill="none" stroke-width="10" stroke-linecap="round"/>
+                <text class="grafana-gauge-text" id="grafana-gauge-value-text" x="60" y="72" text-anchor="middle" dominant-baseline="middle">—</text>
+              </svg>
+            </div>
+            <div class="grafana-gauge-labels">
+              <span class="grafana-gauge-title">Rating 2.0</span>
+            </div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-dpr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">DPR</span><span class="gauge-linear-value" id="player-gauge-dpr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-dpr-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-kast">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">KAST%</span><span class="gauge-linear-value" id="player-gauge-kast-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-kast-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-adr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">ADR</span><span class="gauge-linear-value" id="player-gauge-adr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-adr-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-kpr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">KPR</span><span class="gauge-linear-value" id="player-gauge-kpr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-kpr-fill"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="player-overlay-matches">
+        <h3 class="player-overlay-section-title">Matchs</h3>
+        <div class="player-overlay-matches-list" id="player-overlay-matches-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div id="footer-common" class="footer-left"></div>
+  </footer>
+
+  <script src="common.js"></script>
+  <script src="brackets.js"></script>
+</body>
+</html>

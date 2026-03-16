@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HelloView — Stats CS2</title>
+  <link rel="icon" href="hello26.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="common.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="side-panel-hotzone" id="side-panel-hotzone" aria-hidden="true"></div>
+  <aside class="side-panel" id="side-panel" aria-label="Liste des matchs">
+    <div class="side-panel-header">
+      <h2 class="side-panel-title">Matchs</h2>
+      <button type="button" class="side-panel-close" id="side-panel-close" aria-label="Fermer le panneau">&times;</button>
+    </div>
+    <ul class="side-panel-list" id="side-panel-list"></ul>
+  </aside>
+  <button type="button" class="side-panel-toggle" id="side-panel-toggle" aria-label="Ouvrir la liste des matchs" aria-expanded="false">Matchs</button>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div class="header-left">
+          <h1 class="logo">HelloWorld!Nexen</h1>
+          <p class="tagline">Tournoi CS2 · Top joueurs & top équipes</p>
+        </div>
+        <div class="header-datetime" id="header-datetime" aria-live="polite"></div>
+        <div class="header-right">
+          <a href="/brackets" class="header-link header-link-btn">Brackets</a>
+          <img src="hello26.png" alt="Hello!Nexen Championship" class="header-logo" width="120" height="48">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="filters">
+      <label class="filter-bracket">
+        <span>Bracket</span>
+        <select id="filter-bracket" aria-label="Filtrer par bracket">
+          <option value="">Tous</option>
+          <option value="swiss">Swiss</option>
+          <option value="elite">Arbre Elite</option>
+          <option value="amateur">Arbre Amateur</option>
+        </select>
+      </label>
+      <label class="filter-match-wrap">
+        <span>Match <span class="new-matches-badge" id="new-matches-badge" aria-hidden="true">Nouveaux</span></span>
+        <select id="filter-match" aria-label="Filtrer par match">
+          <option value="">Tous les matchs</option>
+        </select>
+      </label>
+      <label class="filter-team">
+        <span>Équipe</span>
+        <select id="filter-team" aria-label="Filtrer par équipe">
+          <option value="">Toutes</option>
+        </select>
+      </label>
+      <button type="button" id="btn-clear-filters" class="btn-clear-filters hidden" aria-label="Supprimer tous les filtres">Supprimer tous les filtres</button>
+    </div>
+
+    <div class="split-view">
+      <section id="view-players" class="split-pane split-pane-players">
+        <div class="pane-header">
+          <h2 class="pane-title">Top joueurs</h2>
+          <input type="search" id="search-players" class="pane-search" placeholder="Rechercher un joueur…" aria-label="Rechercher un joueur">
+        </div>
+        <div class="table-wrap">
+          <table class="stats-table" id="table-players">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th>Joueur</th>
+                <th>Equipe</th>
+                <th>K/D/A</th>
+                <th>K/D</th>
+                <th>ADR</th>
+                <th>RATING 2.0</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-teams" class="split-pane split-pane-teams">
+        <div class="pane-header">
+          <h2 class="pane-title">Top équipes</h2>
+          <input type="search" id="search-teams" class="pane-search" placeholder="Rechercher une équipe…" aria-label="Rechercher une équipe">
+        </div>
+        <div class="table-wrap table-wrap-teams">
+          <table class="stats-table" id="table-teams">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th>Nom</th>
+                <th>Matchs</th>
+                <th>W/L</th>
+                <th>W/L %</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div id="footer-common" class="footer-left"></div>
+    <div class="auto-scroll-control" aria-label="Défilement automatique des tableaux" title="Pour activer le défilement auto par défaut au chargement, ajoutez ?autoScroll=1 à l’URL (ex. signet avec cette URL).">
+      <label class="auto-scroll-label">
+        <input type="checkbox" id="auto-scroll-toggle" class="auto-scroll-checkbox" aria-checked="false" aria-label="Activer le défilement automatique">
+        <span class="auto-scroll-slider"></span>
+        <span class="auto-scroll-text">Défilement auto</span>
+      </label>
+    </div>
+  </footer>
+
+  <div class="overlay" id="match-overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title" hidden>
+    <div class="overlay-backdrop" id="overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-match">
+      <header class="overlay-header overlay-header-match">
+        <h2 class="overlay-title" id="overlay-title">Détail du match</h2>
+        <div class="overlay-header-score-line" id="overlay-header-score-line"></div>
+        <button type="button" class="overlay-close" id="overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="overlay-match-meta" id="overlay-match-meta"></div>
+      <div class="overlay-match-teams" id="overlay-match-teams"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="player-overlay" role="dialog" aria-modal="true" aria-labelledby="player-overlay-title" hidden>
+    <div class="overlay-backdrop" id="player-overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-player">
+      <header class="overlay-header">
+        <h2 class="overlay-title" id="player-overlay-title">Détail joueur</h2>
+        <button type="button" class="overlay-close" id="player-overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="player-overlay-hero" id="player-overlay-hero">
+        <div class="player-overlay-identity" id="player-overlay-identity">
+          <div class="player-overlay-avatar-wrap" id="player-overlay-avatar-wrap"></div>
+          <div class="player-overlay-name-row">
+            <h3 class="player-overlay-name" id="player-overlay-name"></h3>
+          </div>
+          <p class="player-overlay-team" id="player-overlay-team"></p>
+        </div>
+        <div class="player-overlay-gauges">
+          <div class="player-gauge rating-gauge grafana-gauge" id="player-gauge-rating">
+            <div class="grafana-gauge-svg-wrap">
+              <svg class="grafana-gauge-svg" viewBox="0 0 120 100" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <!-- Piste de fond : demi-cercle gauche → droite (centre 60,55 r=40) -->
+                <path class="grafana-gauge-track" d="M 20 55 A 40 40 0 0 1 100 55" fill="none" stroke-width="10" stroke-linecap="round"/>
+                <!-- Arc de valeur : même path, rempli par stroke-dasharray en JS -->
+                <path class="grafana-gauge-value-arc" id="grafana-gauge-value-arc" d="M 20 55 A 40 40 0 0 1 100 55" fill="none" stroke-width="10" stroke-linecap="round"/>
+                <!-- Valeur au centre -->
+                <text class="grafana-gauge-text" id="grafana-gauge-value-text" x="60" y="72" text-anchor="middle" dominant-baseline="middle">—</text>
+              </svg>
+            </div>
+            <div class="grafana-gauge-labels">
+              <span class="grafana-gauge-title">Rating 2.0</span>
+            </div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-dpr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">DPR</span><span class="gauge-linear-value" id="player-gauge-dpr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-dpr-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-kast">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">KAST%</span><span class="gauge-linear-value" id="player-gauge-kast-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-kast-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-adr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">ADR</span><span class="gauge-linear-value" id="player-gauge-adr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-adr-fill"></div></div>
+          </div>
+          <div class="player-gauge-linear" id="player-gauge-kpr">
+            <div class="gauge-linear-header"><span class="gauge-linear-label">KPR</span><span class="gauge-linear-value" id="player-gauge-kpr-value">—</span></div>
+            <div class="gauge-linear-track"><div class="gauge-linear-fill" id="player-gauge-kpr-fill"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="player-overlay-matches">
+        <h3 class="player-overlay-section-title">Matchs</h3>
+        <div class="player-overlay-matches-list" id="player-overlay-matches-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="team-overlay" role="dialog" aria-modal="true" aria-labelledby="team-overlay-title" hidden>
+    <div class="overlay-backdrop" id="team-overlay-backdrop"></div>
+    <div class="overlay-content overlay-content-team">
+      <header class="overlay-header">
+        <h2 class="overlay-title" id="team-overlay-title">Détail équipe</h2>
+        <button type="button" class="overlay-close" id="team-overlay-close" aria-label="Fermer">&times;</button>
+      </header>
+      <div class="team-overlay-hero" id="team-overlay-hero">
+        <div class="team-overlay-logo-wrap" id="team-overlay-logo-wrap"></div>
+        <h3 class="team-overlay-team-name" id="team-overlay-team-name"></h3>
+      </div>
+      <div class="team-overlay-body">
+        <div class="team-overlay-summary" id="team-overlay-summary"></div>
+        <div class="team-overlay-players">
+          <h3 class="team-overlay-section-title">Joueurs</h3>
+          <div class="team-overlay-players-wrap" id="team-overlay-players-list"></div>
+        </div>
+        <div class="team-overlay-matches">
+          <h3 class="team-overlay-section-title">Matchs</h3>
+          <div class="team-overlay-matches-list" id="team-overlay-matches-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
