@@ -1,6 +1,6 @@
 # HelloView — Stats CS2
 
-Dashboard de statistiques **CS2** pour le tournoi **HelloWorld!Nexen** : classements **par joueur** et **par équipe**, brackets (Swiss + arbres Elite / Amateur), overlays détail match / joueur / équipe. Données alimentées par une base **PostgreSQL** (`csdemo`).
+Dashboard de statistiques **CS2** pour le tournoi **HelloWorld!Nexen** : classements **par joueur** et **par équipe**, brackets (Swiss + arbres Elite / Amateur), overlays détail match / joueur / équipe. Les données proviennent d’une base **PostgreSQL** (`csdemo`) générée par [**CS Demo Manager**](https://github.com/akiver/cs-demo-manager) (application compagnon pour les démos Counter-Strike).
 
 ---
 
@@ -31,7 +31,7 @@ Dashboard de statistiques **CS2** pour le tournoi **HelloWorld!Nexen** : classem
 ## Prérequis
 
 - **Node.js** (v16+ recommandé)
-- **PostgreSQL** avec une base `csdemo` contenant au minimum les tables `players`, `matches`, `teams` (et optionnellement `demos`, `steam_account_overrides`). Voir `docs/SCHEMA-ANALYSIS.md` pour le détail du schéma.
+- **PostgreSQL** avec une base `csdemo` contenant au minimum les tables `players`, `matches`, `teams` (et optionnellement `demos`, `steam_account_overrides`). Cette base est typiquement exportée depuis [**CS Demo Manager**](https://github.com/akiver/cs-demo-manager). Voir `docs/SCHEMA-ANALYSIS.md` pour le détail du schéma.
 
 ---
 

@@ -790,3 +790,16 @@
 .footer-heart {
   color: var(--red);
 }
+
+.footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+.footer-github-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
