@@ -7,7 +7,7 @@
   const state = {
     data: null,
     bracketsData: null,
-    matchIdsByBracket: { swiss: new Set(), elite: new Set(), amateur: new Set() },
+    matchIdsByBracket: {},
     bracketSection: '',
     matchId: '',
     teamName: '',
@@ -59,17 +59,38 @@
   const matchSelect = $('filter-match');
   const teamSelect = $('filter-team');
 
+  function collectDemoIdsFromTournament(t) {
+    const set = new Set();
+    const addFrom = (matches) => {
+      (matches || []).forEach((m) => { if (m && m.demoId) set.add(m.demoId); });
+    };
+    if (!t) return set;
+    if (t.type === 'swiss') {
+      (t.rounds || []).forEach((r) => addFrom(r.matches));
+    } else {
+      (t.upperRounds || []).forEach((r) => addFrom(r.matches));
+      (t.lowerRounds || []).forEach((r) => addFrom(r.matches));
+      if (t.grandFinale) addFrom(t.grandFinale.matches);
+    }
+    return set;
+  }
+
   function getMatchIdsByBracket(bracketsData) {
-    const swiss = new Set();
-    const elite = new Set();
-    const amateur = new Set();
-    if (!bracketsData) return { swiss, elite, amateur };
-    (bracketsData.swiss?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) swiss.add(m.demoId); }));
-    (bracketsData.elite?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) elite.add(m.demoId); }));
-    (bracketsData.elite?.lowerRounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) elite.add(m.demoId); }));
-    (bracketsData.amateur?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) amateur.add(m.demoId); }));
-    (bracketsData.amateur?.lowerRounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) amateur.add(m.demoId); }));
-    return { swiss, elite, amateur };
+    const out = {};
+    if (!bracketsData) return out;
+    if (bracketsData.schemaVersion === 2 && Array.isArray(bracketsData.tournaments)) {
+      bracketsData.tournaments.forEach((t) => {
+        out[t.id] = collectDemoIdsFromTournament(t);
+      });
+      return out;
+    }
+    ['swiss', 'elite', 'amateur'].forEach((k) => { out[k] = new Set(); });
+    (bracketsData.swiss?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) out.swiss.add(m.demoId); }));
+    (bracketsData.elite?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) out.elite.add(m.demoId); }));
+    (bracketsData.elite?.lowerRounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) out.elite.add(m.demoId); }));
+    (bracketsData.amateur?.rounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) out.amateur.add(m.demoId); }));
+    (bracketsData.amateur?.lowerRounds || []).forEach((r) => (r.matches || []).forEach((m) => { if (m.demoId) out.amateur.add(m.demoId); }));
+    return out;
   }
 
   function getMatchIdsForCurrentBracket() {
@@ -82,7 +103,7 @@
   function applyFiltersFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const bracket = params.get(FILTER_PARAMS.bracket);
-    if (bracket === 'swiss' || bracket === 'elite' || bracket === 'amateur') state.bracketSection = bracket;
+    if (bracket && bracket.trim()) state.bracketSection = bracket.trim();
     const match = params.get(FILTER_PARAMS.match);
     if (match && match.trim()) state.matchId = match.trim();
     const team = params.get(FILTER_PARAMS.team);
@@ -233,6 +254,7 @@
         state.data = json;
         state.bracketsData = bracketsData;
         state.matchIdsByBracket = getMatchIdsByBracket(bracketsData);
+        if (state.filtersInited) populateBracketFilterSelect();
         state.lastUpdated = new Date();
         applyFiltersFromUrl();
         updateFooterDate();
@@ -266,7 +288,34 @@
       });
   }
 
+  function populateBracketFilterSelect() {
+    if (!bracketSelect) return;
+    const cur = state.bracketSection || '';
+    bracketSelect.innerHTML = '<option value="">Tous</option>';
+    const bd = state.bracketsData;
+    if (bd && bd.schemaVersion === 2 && Array.isArray(bd.tournaments)) {
+      bd.tournaments.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.title || t.id;
+        bracketSelect.appendChild(opt);
+      });
+    } else {
+      const labels = { swiss: 'Swiss', elite: 'Arbre Elite', amateur: 'Arbre Amateur' };
+      ['swiss', 'elite', 'amateur'].forEach((id) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = labels[id];
+        bracketSelect.appendChild(opt);
+      });
+    }
+    const vals = [...bracketSelect.options].map((o) => o.value);
+    if (cur && vals.includes(cur)) bracketSelect.value = cur;
+    else bracketSelect.value = '';
+  }
+
   function initFilters() {
+    populateBracketFilterSelect();
     const { players } = state.data;
     const matches = getMatchesForMatchSelect();
     matchSelect.innerHTML = '<option value="">Tous les matchs</option>';

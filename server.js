@@ -10,6 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
+const bracketsModel = require('./lib/brackets-model');
 const multer = require('multer');
 const { Pool } = require('pg');
 
@@ -57,90 +58,23 @@ function getCustomAvatarUrl(steamId) {
   return getAvatarPath(steamId) ? '/api/avatars/' + encodeURIComponent(String(steamId).replace(/\D/g, '') || steamId) : null;
 }
 
-function defaultBrackets() {
-  const emptyMatch = () => ({ teamA: '', teamB: '', winner: null, demoId: null });
-  const swissRounds = [
-    { roundIndex: 0, matches: Array.from({ length: 16 }, emptyMatch) },
-    { roundIndex: 1, matches: Array.from({ length: 16 }, emptyMatch) },
-    { roundIndex: 2, matches: Array.from({ length: 16 }, emptyMatch) },
-    { roundIndex: 3, matches: Array.from({ length: 12 }, emptyMatch) },
-    { roundIndex: 4, matches: Array.from({ length: 6 }, emptyMatch) }
-  ];
-  const elimRound = (n) => ({ matches: Array.from({ length: n }, emptyMatch) });
-  // Lower: R1 (4), R2 (4), R3 (2), R4 (2), Finale lower (1), Grande Finale (1)
-  const lowerRounds = [elimRound(4), elimRound(4), elimRound(2), elimRound(2), elimRound(1), elimRound(1)];
-  return {
-    swiss: { rounds: swissRounds },
-    elite: { rounds: [elimRound(8), elimRound(4), elimRound(2), elimRound(1)], lowerRounds },
-    amateur: { rounds: [elimRound(8), elimRound(4), elimRound(2), elimRound(1)], lowerRounds }
-  };
-}
-
-function normalizeLowerRounds(lowerRounds) {
-  const emptyMatch = () => ({ teamA: '', teamB: '', winner: null, demoId: null });
-  const targetCounts = [4, 4, 2, 2, 1, 1];
-  // Ancien format 3 rounds [4, 2, 1] -> nouveau 6 [4, 4, 2, 2, 1, 1] : ancien r0->nouveau r0, r1->r2, r2->r4
-  const newToOld = { 0: 0, 2: 1, 4: 2 };
-  const rounds = (lowerRounds && lowerRounds.length) ? lowerRounds : [];
-  return targetCounts.map((count, ri) => {
-    const oldRi = newToOld[ri];
-    const existing = (oldRi != null && rounds[oldRi] && rounds[oldRi].matches) ? rounds[oldRi].matches : (rounds[ri] && rounds[ri].matches ? rounds[ri].matches : []);
-    const matches = Array.from({ length: count }, (_, i) => {
-      const ex = existing[i];
-      return ex && (ex.teamA !== undefined || ex.teamB !== undefined || ex.winner !== undefined)
-        ? { teamA: ex.teamA ?? '', teamB: ex.teamB ?? '', winner: ex.winner ?? null, demoId: ex.demoId ?? null }
-        : emptyMatch();
-    });
-    return { roundIndex: ri, matches };
-  });
-}
-
-function normalizeSwiss(swiss) {
-  if (!swiss || !swiss.rounds) return defaultBrackets().swiss;
-  const matchCounts = [16, 16, 16, 12, 6];
-  const teams = (swiss.teams && Array.isArray(swiss.teams)) ? swiss.teams : [];
-  const toMatch = (legacy) => {
-    if (legacy && (legacy.teamA != null || legacy.teamAIndex != null || legacy.teamB != null || legacy.teamBIndex != null)) {
-      const nameA = legacy.teamA != null ? String(legacy.teamA).trim() : (legacy.teamAIndex != null && teams[legacy.teamAIndex] ? teams[legacy.teamAIndex].name : '');
-      const nameB = legacy.teamB != null ? String(legacy.teamB).trim() : (legacy.teamBIndex != null && teams[legacy.teamBIndex] ? teams[legacy.teamBIndex].name : '');
-      let winner = null;
-      if (legacy.winner != null && String(legacy.winner).trim() !== '') winner = String(legacy.winner).trim();
-      else if (legacy.winnerIndex != null && teams[legacy.winnerIndex]) winner = teams[legacy.winnerIndex].name || null;
-      return { teamA: nameA || '', teamB: nameB || '', winner, demoId: legacy.demoId != null ? String(legacy.demoId).trim() : null };
-    }
-    return { teamA: '', teamB: '', winner: null, demoId: null };
-  };
-  const rounds = swiss.rounds || [];
-  const normalizedRounds = matchCounts.map((count, ri) => {
-    const r = rounds[ri] || { matches: [] };
-    const matches = (r.matches || []).slice(0, count).map(toMatch);
-    while (matches.length < count) matches.push({ teamA: '', teamB: '', winner: null, demoId: null });
-    return { roundIndex: ri, matches };
-  });
-  return { rounds: normalizedRounds };
-}
-
 function getBracketsData() {
-  const def = defaultBrackets();
   try {
     if (fs.existsSync(bracketsPath)) {
       const raw = fs.readFileSync(bracketsPath, 'utf8');
-      const data = JSON.parse(raw);
-      if (data.swiss) data.swiss = normalizeSwiss(data.swiss);
-      if (data.elite) data.elite.lowerRounds = normalizeLowerRounds(data.elite.lowerRounds || def.elite.lowerRounds);
-      if (data.amateur) data.amateur.lowerRounds = normalizeLowerRounds(data.amateur.lowerRounds || def.amateur.lowerRounds);
-      return data;
+      return bracketsModel.parseBracketsFileContent(raw);
     }
   } catch (e) {
     console.error('brackets read:', e.message);
   }
-  return def;
+  return bracketsModel.defaultV2Brackets();
 }
 
 function setBracketsData(data) {
   try {
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-    fs.writeFileSync(bracketsPath, JSON.stringify(data, null, 2), 'utf8');
+    const payload = bracketsModel.normalizeV2Payload(data);
+    fs.writeFileSync(bracketsPath, JSON.stringify(payload, null, 2), 'utf8');
     return true;
   } catch (e) {
     console.error('brackets write:', e.message);
@@ -425,26 +359,46 @@ app.post('/api/brackets/auth', (req, res) => {
 
 app.post('/api/brackets', requireAdmin, (req, res) => {
   const body = req.body || {};
-  const { section, roundIndex, matchIndex, teamA, teamB, winner, demoId, lowerBracket } = body;
-  if (section !== 'swiss' && section !== 'elite' && section !== 'amateur') {
-    return res.status(400).json({ error: 'section invalide' });
+  let tournamentId = String(body.tournamentId || body.section || '').trim();
+  let lane = String(body.lane || '').trim();
+  let roundIndex = Number(body.roundIndex);
+  let matchIndex = Number(body.matchIndex);
+  const { teamA, teamB, winner, demoId, lowerBracket } = body;
+
+  if (!tournamentId) {
+    return res.status(400).json({ error: 'tournamentId ou section requis' });
   }
   const data = getBracketsData();
-  const rounds = lowerBracket
-    ? (data[section] && data[section].lowerRounds)
-    : (data[section] && data[section].rounds);
-  if (!rounds || !Number.isInteger(roundIndex) || roundIndex < 0 || roundIndex >= rounds.length) {
+  const tMeta = data.tournaments.find((t) => t.id === tournamentId);
+  if (!tMeta) {
+    return res.status(400).json({ error: 'tournoi inconnu' });
+  }
+
+  if (tMeta.type === 'swiss') {
+    lane = 'swiss';
+  } else if (lane === 'grand') {
+    /* roundIndex / matchIndex tels qu’envoyés (UI grande finale) */
+  } else if (!lane) {
+    if (lowerBracket) {
+      lane = 'lower';
+    } else {
+      lane = 'upper';
+    }
+  }
+
+  if (!Number.isInteger(roundIndex) || roundIndex < 0) {
     return res.status(400).json({ error: 'roundIndex invalide' });
   }
-  const matches = rounds[roundIndex].matches;
-  if (!matches || !Number.isInteger(matchIndex) || matchIndex < 0 || matchIndex >= matches.length) {
+  if (!Number.isInteger(matchIndex) || matchIndex < 0) {
     return res.status(400).json({ error: 'matchIndex invalide' });
   }
-  const m = matches[matchIndex];
-  if (teamA !== undefined) m.teamA = String(teamA ?? '').trim();
-  if (teamB !== undefined) m.teamB = String(teamB ?? '').trim();
-  if (winner !== undefined) m.winner = winner == null || winner === '' ? null : String(winner).trim();
-  if (demoId !== undefined) m.demoId = demoId == null || demoId === '' ? null : String(demoId).trim();
+
+  const upd = bracketsModel.applyMatchUpdate(data.tournaments, tournamentId, lane, roundIndex, matchIndex, {
+    teamA, teamB, winner, demoId
+  });
+  if (!upd.ok) {
+    return res.status(400).json({ error: upd.error || 'mise à jour impossible' });
+  }
   if (!setBracketsData(data)) return res.status(500).json({ error: 'Erreur écriture' });
   res.json({ ok: true, brackets: data });
 });

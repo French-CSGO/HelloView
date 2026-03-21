@@ -18,6 +18,14 @@
   --font-heading: 'Rajdhani', system-ui, sans-serif;
   --font-sans: 'Roboto', system-ui, sans-serif;
   --font-mono: 'Roboto', system-ui, sans-serif;
+  /* Ascenseurs (thème sombre) */
+  --scrollbar-track: #0c1028;
+  --scrollbar-thumb: #3d3758;
+  --scrollbar-thumb-hover: #524a78;
+  --scrollbar-thumb-active: #2a8fb0;
+  --scrollbar-size: 10px;
+  /* Page brackets : même marge gauche/droite (ensemble centré si le contenu ne remplit pas l’écran) */
+  --brackets-pad-inline: clamp(0.5rem, 1vw, 1.1rem);
 }
 
 * { box-sizing: border-box; }
@@ -31,13 +39,123 @@ body {
   font-size: 15px;
 }
 
+/* Ascenseurs — Firefox */
+body.brackets-page {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+body.brackets-page .bracket-tree,
+body.brackets-page .bracket-tree-lower,
+body.brackets-page .swiss-grid,
+body.brackets-page .swiss-flux,
+body.brackets-page .parcours-table-wrap,
+body.brackets-page .match-detail-teams,
+body.brackets-page .match-team-table-wrap,
+body.brackets-page .swiss-teams-form,
+body.brackets-page .overlay-content,
+body.brackets-page .modal,
+body.brackets-page .team-overlay-players-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Ascenseurs — WebKit (page + zones scrollables brackets) */
+body.brackets-page::-webkit-scrollbar,
+body.brackets-page .bracket-tree::-webkit-scrollbar,
+body.brackets-page .bracket-tree-lower::-webkit-scrollbar,
+body.brackets-page .swiss-grid::-webkit-scrollbar,
+body.brackets-page .swiss-flux::-webkit-scrollbar,
+body.brackets-page .parcours-table-wrap::-webkit-scrollbar,
+body.brackets-page .match-detail-teams::-webkit-scrollbar,
+body.brackets-page .match-team-table-wrap::-webkit-scrollbar,
+body.brackets-page .swiss-teams-form::-webkit-scrollbar,
+body.brackets-page .overlay-content::-webkit-scrollbar,
+body.brackets-page .modal::-webkit-scrollbar,
+body.brackets-page .team-overlay-players-wrap::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+body.brackets-page::-webkit-scrollbar-track,
+body.brackets-page .bracket-tree::-webkit-scrollbar-track,
+body.brackets-page .bracket-tree-lower::-webkit-scrollbar-track,
+body.brackets-page .swiss-grid::-webkit-scrollbar-track,
+body.brackets-page .swiss-flux::-webkit-scrollbar-track,
+body.brackets-page .parcours-table-wrap::-webkit-scrollbar-track,
+body.brackets-page .match-detail-teams::-webkit-scrollbar-track,
+body.brackets-page .match-team-table-wrap::-webkit-scrollbar-track,
+body.brackets-page .swiss-teams-form::-webkit-scrollbar-track,
+body.brackets-page .overlay-content::-webkit-scrollbar-track,
+body.brackets-page .modal::-webkit-scrollbar-track,
+body.brackets-page .team-overlay-players-wrap::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 6px;
+}
+
+body.brackets-page::-webkit-scrollbar-thumb,
+body.brackets-page .bracket-tree::-webkit-scrollbar-thumb,
+body.brackets-page .bracket-tree-lower::-webkit-scrollbar-thumb,
+body.brackets-page .swiss-grid::-webkit-scrollbar-thumb,
+body.brackets-page .swiss-flux::-webkit-scrollbar-thumb,
+body.brackets-page .parcours-table-wrap::-webkit-scrollbar-thumb,
+body.brackets-page .match-detail-teams::-webkit-scrollbar-thumb,
+body.brackets-page .match-team-table-wrap::-webkit-scrollbar-thumb,
+body.brackets-page .swiss-teams-form::-webkit-scrollbar-thumb,
+body.brackets-page .overlay-content::-webkit-scrollbar-thumb,
+body.brackets-page .modal::-webkit-scrollbar-thumb,
+body.brackets-page .team-overlay-players-wrap::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+  border: 2px solid var(--scrollbar-track);
+  background-clip: padding-box;
+}
+
+body.brackets-page::-webkit-scrollbar-thumb:hover,
+body.brackets-page .bracket-tree::-webkit-scrollbar-thumb:hover,
+body.brackets-page .bracket-tree-lower::-webkit-scrollbar-thumb:hover,
+body.brackets-page .swiss-grid::-webkit-scrollbar-thumb:hover,
+body.brackets-page .swiss-flux::-webkit-scrollbar-thumb:hover,
+body.brackets-page .parcours-table-wrap::-webkit-scrollbar-thumb:hover,
+body.brackets-page .match-detail-teams::-webkit-scrollbar-thumb:hover,
+body.brackets-page .match-team-table-wrap::-webkit-scrollbar-thumb:hover,
+body.brackets-page .swiss-teams-form::-webkit-scrollbar-thumb:hover,
+body.brackets-page .overlay-content::-webkit-scrollbar-thumb:hover,
+body.brackets-page .modal::-webkit-scrollbar-thumb:hover,
+body.brackets-page .team-overlay-players-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+body.brackets-page::-webkit-scrollbar-thumb:active,
+body.brackets-page .bracket-tree::-webkit-scrollbar-thumb:active,
+body.brackets-page .bracket-tree-lower::-webkit-scrollbar-thumb:active,
+body.brackets-page .swiss-grid::-webkit-scrollbar-thumb:active,
+body.brackets-page .swiss-flux::-webkit-scrollbar-thumb:active,
+body.brackets-page .parcours-table-wrap::-webkit-scrollbar-thumb:active,
+body.brackets-page .match-detail-teams::-webkit-scrollbar-thumb:active,
+body.brackets-page .match-team-table-wrap::-webkit-scrollbar-thumb:active,
+body.brackets-page .swiss-teams-form::-webkit-scrollbar-thumb:active,
+body.brackets-page .overlay-content::-webkit-scrollbar-thumb:active,
+body.brackets-page .modal::-webkit-scrollbar-thumb:active,
+body.brackets-page .team-overlay-players-wrap::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  background-clip: padding-box;
+}
+
+body.brackets-page::-webkit-scrollbar-corner,
+body.brackets-page .bracket-tree::-webkit-scrollbar-corner,
+body.brackets-page .swiss-grid::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
 .hidden { display: none !important; }
 
-/* Header — même structure que le dashboard (largeur max 1600px, logo) */
+/* Header — pleine largeur, marges alignées sur le main */
 .header {
   background: linear-gradient(135deg, var(--bg-header) 0%, #0f0d1e 50%, #1a1535 100%);
   border-bottom: 1px solid var(--border);
-  padding: 0 1.5rem;
+  padding: 0 var(--brackets-pad-inline);
   height: 72px;
   display: flex;
   align-items: center;
@@ -50,8 +168,8 @@ body {
 }
 
 .header-inner {
-  max-width: 1600px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   width: 100%;
   display: flex;
   align-items: center;
@@ -141,11 +259,13 @@ body {
 
 .btn-logout { color: var(--text-muted); }
 
-/* Main */
+/* Main — toute la largeur utile (arbres longs) */
 .brackets-main {
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 1rem 1.5rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.85rem var(--brackets-pad-inline) 1.25rem;
+  box-sizing: border-box;
 }
 
 .brackets-tabs {
@@ -176,6 +296,11 @@ body {
 }
 
 .brackets-panel { padding: 0.5rem 0; }
+
+/* Pied de page : mêmes marges latérales que le contenu */
+body.brackets-page .footer {
+  padding-inline: var(--brackets-pad-inline);
+}
 
 .brackets-desc {
   color: var(--text-muted);
@@ -687,6 +812,32 @@ body {
 }
 
 /* Bracket tree — 1re ligne : Upper + Grande Finale ; 2e ligne : Lower */
+/* SVG dans l’inner upper : défile avec le contenu, coords = boîte de l’inner */
+.bracket-tree-inner:not(.bracket-tree-inner-lower) {
+  position: relative;
+}
+
+.bracket-tree-inner:not(.bracket-tree-inner-lower) > .bracket-links-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.bracket-link-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.45;
+}
+
 .bracket-panel-elim-wrap {
   display: flex;
   flex-direction: column;
@@ -772,6 +923,7 @@ body {
 }
 
 .bracket-tree {
+  position: relative;
   overflow-x: auto;
   padding: 1rem 0;
 }

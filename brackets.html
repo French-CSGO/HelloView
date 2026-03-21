@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="common.css">
   <link rel="stylesheet" href="brackets.css">
 </head>
-<body>
+<body class="brackets-page">
   <header class="header header-brackets" id="brackets-header">
     <div class="header-inner">
       <div class="header-left">
@@ -29,71 +29,16 @@
   </header>
 
   <main class="brackets-main">
-    <nav class="brackets-tabs" role="tablist">
-      <button type="button" class="tab" role="tab" id="tab-swiss" aria-selected="true">Swiss (32 → Elite / Amateur)</button>
-      <button type="button" class="tab" role="tab" id="tab-elite" aria-selected="false">Arbre Elite (16)</button>
-      <button type="button" class="tab" role="tab" id="tab-amateur" aria-selected="false">Arbre Amateur (16)</button>
-    </nav>
-
-    <section class="brackets-panel" id="panel-swiss" role="tabpanel" aria-labelledby="tab-swiss">
-      <p class="brackets-desc">Swiss 32 équipes · 3 victoires = qualifié, 3 défaites = éliminé · 5 rondes max · Appariement par bilan (même W-L).</p>
-      <div class="swiss-views">
-        <button type="button" class="swiss-view-tab active" id="swiss-tab-matches" aria-pressed="true">Rounds</button>
-        <button type="button" class="swiss-view-tab" id="swiss-tab-flux" aria-pressed="false">Flux</button>
-        <button type="button" class="swiss-view-tab" id="swiss-tab-parcours" aria-pressed="false">Qualifications</button>
-      </div>
-      <div class="swiss-matches-view" id="swiss-matches-view">
-        <div class="swiss-grid" id="swiss-grid"></div>
-      </div>
-      <div class="swiss-flux-view hidden" id="swiss-flux-view">
-        <div class="swiss-flux" id="swiss-flux"></div>
-      </div>
-      <div class="swiss-parcours-view hidden" id="swiss-parcours-view">
-        <div class="parcours-table-wrap">
-          <table class="parcours-table" id="parcours-table"></table>
-        </div>
-      </div>
-    </section>
-
-    <section class="brackets-panel hidden" id="panel-elite" role="tabpanel" aria-labelledby="tab-elite">
-      <p class="brackets-desc">Élimination directe · 8e, quarts, demies, finale</p>
-      <div class="bracket-panel-elim-wrap">
-        <div class="bracket-row-upper">
-          <div class="bracket-block bracket-block-upper">
-            <div class="bracket-vertical-title" aria-hidden="true">Upper Bracket</div>
-            <div class="bracket-tree" id="elite-tree"></div>
-          </div>
-          <div class="bracket-grand-finale-wrap" id="elite-grand-finale"></div>
-        </div>
-        <div class="bracket-block bracket-block-lower">
-          <div class="bracket-vertical-title bracket-vertical-title-lower" aria-hidden="true">Lower Bracket (perdants 8e)</div>
-          <div class="bracket-tree bracket-tree-lower" id="elite-lower-tree"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="brackets-panel hidden" id="panel-amateur" role="tabpanel" aria-labelledby="tab-amateur">
-      <p class="brackets-desc">Élimination directe · 8e, quarts, demies, finale</p>
-      <div class="bracket-panel-elim-wrap">
-        <div class="bracket-row-upper">
-          <div class="bracket-block bracket-block-upper">
-            <div class="bracket-vertical-title" aria-hidden="true">Upper Bracket</div>
-            <div class="bracket-tree" id="amateur-tree"></div>
-          </div>
-          <div class="bracket-grand-finale-wrap" id="amateur-grand-finale"></div>
-        </div>
-        <div class="bracket-block bracket-block-lower">
-          <div class="bracket-vertical-title bracket-vertical-title-lower" aria-hidden="true">Lower Bracket (perdants 8e)</div>
-          <div class="bracket-tree bracket-tree-lower" id="amateur-lower-tree"></div>
-        </div>
-      </div>
-    </section>
+    <nav class="brackets-tabs" id="brackets-tabs" role="tablist" aria-label="Tournois"></nav>
+    <div id="brackets-panels"></div>
   </main>
 
   <div class="modal-overlay hidden" id="modal-overlay">
     <div class="modal modal-edit-match" role="dialog" aria-labelledby="modal-title">
       <h2 class="modal-title" id="modal-title">Éditer le match</h2>
       <form class="modal-form" id="modal-form">
+        <input type="hidden" id="edit-tournamentId">
+        <input type="hidden" id="edit-lane">
         <input type="hidden" id="edit-section">
         <input type="hidden" id="edit-roundIndex">
         <input type="hidden" id="edit-matchIndex">

@@ -9,6 +9,47 @@
     token: sessionStorage.getItem(BRACKETS_STORAGE_KEY)
   };
 
+  let builtPanelIds = '';
+  let upperLinksRedrawRaf = null;
+  let upperLinkResizeObservers = [];
+
+  function teardownUpperBracketLinkObservers() {
+    upperLinkResizeObservers.forEach((o) => o.disconnect());
+    upperLinkResizeObservers = [];
+  }
+
+  /** Double rAF : layout / polices ; ne dessine que les panneaux élimination visibles. */
+  function scheduleUpperBracketLinksRedraw() {
+    if (upperLinksRedrawRaf != null) cancelAnimationFrame(upperLinksRedrawRaf);
+    upperLinksRedrawRaf = requestAnimationFrame(() => {
+      upperLinksRedrawRaf = requestAnimationFrame(() => {
+        upperLinksRedrawRaf = null;
+        if (!state.data || !state.data.tournaments) return;
+        state.data.tournaments.forEach((t) => {
+          if (t.type !== 'elimination' || t.drawBracketLinks === false) return;
+          const d = safeDomId(t.id);
+          const panel = document.getElementById('panel-' + d);
+          if (!panel || panel.classList.contains('hidden')) return;
+          const tree = document.getElementById('tree-upper-' + d);
+          if (tree) drawBracketLinks(tree, t, 'upper');
+        });
+      });
+    });
+  }
+
+  function setupUpperBracketLinkObservers() {
+    teardownUpperBracketLinkObservers();
+    if (typeof ResizeObserver === 'undefined' || !state.data || !state.data.tournaments) return;
+    state.data.tournaments.forEach((t) => {
+      if (t.type !== 'elimination' || t.drawBracketLinks === false) return;
+      const inner = document.querySelector('#tree-upper-' + safeDomId(t.id) + ' .bracket-tree-inner:not(.bracket-tree-inner-lower)');
+      if (!inner) return;
+      const ro = new ResizeObserver(() => scheduleUpperBracketLinksRedraw());
+      ro.observe(inner);
+      upperLinkResizeObservers.push(ro);
+    });
+  }
+
   function $(id) { return document.getElementById(id); }
 
   function escapeHtml(s) {
@@ -60,7 +101,7 @@
       window.HelloView.openPlayerOverlay(steamId, data);
       document.body.style.overflow = 'hidden';
     } catch (_) {
-      /* pas de stats : on pourrait afficher un message */
+      /* pas de stats */
     }
   }
 
@@ -121,9 +162,24 @@
     }
   }
 
-  function openMatchOverlayFromBracketsCell(section, roundIndex, matchIndex, isLower) {
-    const rounds = isLower ? (state.data[section] && state.data[section].lowerRounds) || [] : (state.data[section] && state.data[section].rounds) || [];
-    const m = rounds[roundIndex] && rounds[roundIndex].matches[matchIndex];
+  function getTournamentById(id) {
+    const list = (state.data && state.data.tournaments) || [];
+    return list.find((t) => t.id === id) || null;
+  }
+
+  function openMatchOverlayFromBracketsCell(tournamentId, lane, roundIndex, matchIndex) {
+    const t = getTournamentById(tournamentId);
+    if (!t) return;
+    let m = null;
+    if (t.type === 'swiss' || lane === 'swiss') {
+      m = t.rounds && t.rounds[roundIndex] && t.rounds[roundIndex].matches[matchIndex];
+    } else if (lane === 'grand' && t.grandFinale) {
+      m = t.grandFinale.matches[matchIndex];
+    } else if (lane === 'lower') {
+      m = t.lowerRounds && t.lowerRounds[roundIndex] && t.lowerRounds[roundIndex].matches[matchIndex];
+    } else {
+      m = t.upperRounds && t.upperRounds[roundIndex] && t.upperRounds[roundIndex].matches[matchIndex];
+    }
     if (!m) return;
     const demoId = (m.demoId || '').trim();
     if (demoId) {
@@ -147,11 +203,11 @@
     return state.data;
   }
 
-  async function saveMatch(section, roundIndex, matchIndex, payload) {
+  async function saveMatch(body) {
     const res = await fetch('/api/brackets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ section, roundIndex, matchIndex, ...payload })
+      body: JSON.stringify(body)
     });
     if (res.status === 401) {
       state.token = null;
@@ -191,7 +247,6 @@
     renderAll();
   }
 
-  /** Retourne [winner, loser] si un vainqueur est défini, sinon [teamA, teamB]. */
   function getWinnerLoser(m) {
     const a = (m.teamA || '').trim();
     const b = (m.teamB || '').trim();
@@ -204,40 +259,27 @@
   }
 
   const SWISS_SLOT_HEIGHT = 52;
-  const SWISS_CONNECTOR_WIDTH = 44;
   const SWISS_SLOTS = 16;
 
   const normName = (s) => (s || '').trim().toLowerCase();
 
-  /** Pour chaque match de la ronde r (r >= 1), renvoie les indices des deux matchs de la ronde r-1 d’où viennent les deux équipes (par nom). */
-  function getSwissConnectors() {
-    const swiss = state.data && state.data.swiss;
-    if (!swiss || !swiss.rounds) return [];
-    const rounds = swiss.rounds;
-    const out = [];
-    for (let r = 1; r < rounds.length; r++) {
-      const prev = rounds[r - 1].matches || [];
-      const curr = rounds[r].matches || [];
-      const conn = [];
-      curr.forEach((m, j) => {
-        const nameA = (m.teamA || '').trim();
-        const nameB = (m.teamB || '').trim();
-        let srcA = -1, srcB = -1;
-        prev.forEach((pm, k) => {
-          if (normName(pm.teamA) === normName(nameA) || normName(pm.teamB) === normName(nameA)) srcA = k;
-          if (normName(pm.teamA) === normName(nameB) || normName(pm.teamB) === normName(nameB)) srcB = k;
-        });
-        conn.push({ targetMatchIndex: j, srcMatchA: srcA, srcMatchB: srcB });
-      });
-      out.push(conn);
-    }
-    return out;
+  function safeDomId(id) {
+    return String(id || 't').replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  function computeSwissStandings() {
-    const swiss = state.data && state.data.swiss;
-    if (!swiss || !swiss.rounds) return [];
-    const rounds = swiss.rounds;
+  function getSwissLayout(tournament) {
+    const layout = tournament.swissLayout || {};
+    const blocks = layout.roundBlocks || {};
+    const labels = layout.wlLabels || {};
+    const slots = Number(layout.slots) > 0 ? Number(layout.slots) : SWISS_SLOTS;
+    return { roundBlocks: blocks, wlLabels: labels, slots };
+  }
+
+  function computeSwissStandings(tournament) {
+    if (!tournament || tournament.type !== 'swiss' || !tournament.rounds) return [];
+    const qualifyWins = Number(tournament.swissRules?.qualifyWins) >= 0 ? Number(tournament.swissRules.qualifyWins) : 3;
+    const eliminateLosses = Number(tournament.swissRules?.eliminateLosses) >= 0 ? Number(tournament.swissRules.eliminateLosses) : 3;
+    const rounds = tournament.rounds;
     const teamNames = new Set();
     (rounds || []).forEach((r) => {
       (r.matches || []).forEach((m) => {
@@ -283,33 +325,32 @@
       });
       standings.forEach((s) => {
         if (s.status != null) return;
-        if (s.record.wins >= 3) s.status = 'qualified';
-        else if (s.record.losses >= 3) s.status = 'eliminated';
+        if (s.record.wins >= qualifyWins) s.status = 'qualified';
+        else if (s.record.losses >= eliminateLosses) s.status = 'eliminated';
       });
     }
     return standings;
   }
 
-  /** Standings au début de la ronde ri (avant que la ronde ne soit jouée). */
-  function getStandingsAtStartOfRound(ri) {
-    const standings = computeSwissStandings();
+  function getStandingsAtStartOfRound(tournament, ri) {
+    const standings = computeSwissStandings(tournament);
     return standings.map((s) => {
       const pr = ri === 0 ? { wins: 0, losses: 0 } : (s.perRound[ri - 1] || { wins: 0, losses: 0 });
       return { teamName: s.teamName, wins: pr.wins, losses: pr.losses };
     });
   }
 
-  /** Nœuds du flux Swiss : regroupement par bilan W-L + qualifiés / éliminés. */
-  function computeSwissFlowNodes() {
-    const swiss = state.data && state.data.swiss;
-    if (!swiss || !swiss.rounds) return [];
-    const rounds = swiss.rounds || [];
+  function computeSwissFlowNodes(tournament) {
+    if (!tournament || tournament.type !== 'swiss' || !tournament.rounds) return [];
+    const qualifyWins = Number(tournament.swissRules?.qualifyWins) >= 0 ? Number(tournament.swissRules.qualifyWins) : 3;
+    const eliminateLosses = Number(tournament.swissRules?.eliminateLosses) >= 0 ? Number(tournament.swissRules.eliminateLosses) : 3;
+    const rounds = tournament.rounds || [];
     const nodes = [];
     const seenKeys = new Set();
 
     for (let ri = 0; ri < rounds.length; ri++) {
       const round = rounds[ri];
-      const startStandings = getStandingsAtStartOfRound(ri);
+      const startStandings = getStandingsAtStartOfRound(tournament, ri);
       const byName = {};
       startStandings.forEach((s) => { byName[normName(s.teamName)] = s; });
 
@@ -340,8 +381,8 @@
         const [w, l] = key.split(':').map(Number);
         const matches = bucketMatches[key];
         let borderClass = 'swiss-flux-border-neutral';
-        if (w === 3 && l === 0) borderClass = 'swiss-flux-border-qualified';
-        else if (w === 0 && l === 3) borderClass = 'swiss-flux-border-eliminated';
+        if (w === qualifyWins && l === 0) borderClass = 'swiss-flux-border-qualified';
+        else if (w === 0 && l === eliminateLosses) borderClass = 'swiss-flux-border-eliminated';
         else if (l === 0) borderClass = 'swiss-flux-border-winners';
         else if (w === 0) borderClass = 'swiss-flux-border-losers';
         else borderClass = 'swiss-flux-border-mid';
@@ -349,7 +390,7 @@
       });
     }
 
-    const standings = computeSwissStandings();
+    const standings = computeSwissStandings(tournament);
     const qualified = standings.filter((s) => s.status === 'qualified').map((s) => s.teamName);
     const eliminated = standings.filter((s) => s.status === 'eliminated');
     const elimByRecord = {};
@@ -359,9 +400,9 @@
       elimByRecord[key].push(s.teamName);
     });
     if (qualified.length) {
-      nodes.push({ type: 'qualified', label: '3:0 - Qualifiés', borderClass: 'swiss-flux-border-qualified', teams: qualified });
+      nodes.push({ type: 'qualified', label: qualifyWins + ':0 - Qualifiés', borderClass: 'swiss-flux-border-qualified', teams: qualified });
     }
-    ['3:0', '3:1', '3:2'].forEach((key) => {
+    [eliminateLosses + ':0', eliminateLosses + ':1', eliminateLosses + ':2'].forEach((key) => {
       const teams = elimByRecord[key];
       if (teams && teams.length) {
         const [l, w] = key.split(':').map(Number);
@@ -372,10 +413,11 @@
     return nodes;
   }
 
-  function renderSwissFlux() {
-    const container = $('swiss-flux');
+  function renderSwissFlux(panelEl, tournament) {
+    const d = safeDomId(tournament.id);
+    const container = panelEl.querySelector('#swiss-flux-' + d);
     if (!container) return;
-    const nodes = computeSwissFlowNodes();
+    const nodes = computeSwissFlowNodes(tournament);
     container.innerHTML = '';
     nodes.forEach((node) => {
       const box = document.createElement('div');
@@ -404,10 +446,10 @@
             '<span class="swiss-flux-team">' + escapeHtml(loser) + '</span>';
           if (state.isAdmin) {
             row.classList.add('admin');
-            row.addEventListener('click', () => openEditModal('swiss', roundIndex, matchIndex));
+            row.addEventListener('click', () => openEditModal(tournament.id, 'swiss', roundIndex, matchIndex));
           } else {
             row.classList.add('clickable');
-            row.addEventListener('click', () => openMatchOverlayFromBracketsCell('swiss', roundIndex, matchIndex, false));
+            row.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, 'swiss', roundIndex, matchIndex));
           }
           body.appendChild(row);
         });
@@ -423,35 +465,20 @@
     if (arrows.length) arrows[arrows.length - 1].remove();
   }
 
-  function renderSwiss() {
-    const grid = $('swiss-grid');
-    if (!state.data || !state.data.swiss) return;
-    const rounds = state.data.swiss.rounds || [];
-    const roundNames = ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5'];
+  function renderSwiss(panelEl, tournament) {
+    const grid = panelEl.querySelector('#swiss-grid-' + safeDomId(tournament.id));
+    if (!grid || !tournament.rounds) return;
+    const { roundBlocks, wlLabels, slots } = getSwissLayout(tournament);
+    const rounds = tournament.rounds || [];
     grid.innerHTML = '';
-    const totalHeight = SWISS_SLOTS * SWISS_SLOT_HEIGHT;
-
-    /** Répartition en blocs par ronde (indices de slot par bloc). Ronde 3 = 4+8+4 (milieu regroupé). */
-    const roundBlocks = {
-      1: [[0, 8], [8, 16]],
-      2: [[0, 4], [4, 12], [12, 16]],
-      3: [[0, 6], [6, 12]],
-      4: [[0, 6]]
-    };
-    /** Labels W-L par ronde (un par bloc). */
-    const roundLabels = {
-      0: ['0-0'],
-      1: ['1-0', '0-1'],
-      2: ['2-0', '1-1', '0-2'],
-      3: ['2-1', '1-2'],
-      4: ['2-2']
-    };
+    const totalHeight = slots * SWISS_SLOT_HEIGHT;
 
     rounds.forEach((round, ri) => {
       const col = document.createElement('div');
       col.className = 'swiss-round swiss-round-with-slots';
       col.style.minHeight = totalHeight + 'px';
-      col.innerHTML = '<h3 class="swiss-round-title">' + escapeHtml(roundNames[ri] || 'R' + (ri + 1)) + '</h3><div class="swiss-round-body"></div>';
+      const title = (round.title != null && String(round.title).trim() !== '') ? String(round.title).trim() : ('Round ' + (ri + 1));
+      col.innerHTML = '<h3 class="swiss-round-title">' + escapeHtml(title) + '</h3><div class="swiss-round-body"></div>';
       const body = col.querySelector('.swiss-round-body');
       const inner = document.createElement('div');
       inner.className = 'swiss-round-inner';
@@ -459,13 +486,13 @@
       container.className = 'swiss-matches';
       body.appendChild(inner);
 
-      const blocks = roundBlocks[ri];
-      const slotRanges = blocks || [[0, SWISS_SLOTS]];
-      const labels = roundLabels[ri] || [];
+      const key = String(ri);
+      const blocks = roundBlocks[key] || roundBlocks[ri] || [[0, slots]];
+      const labels = wlLabels[key] || wlLabels[ri] || [];
 
       const labelsStrip = document.createElement('div');
       labelsStrip.className = 'swiss-round-labels';
-      slotRanges.forEach(([start, end], blockIdx) => {
+      blocks.forEach(([start, end], blockIdx) => {
         if (blockIdx > 0) {
           const sep = document.createElement('div');
           sep.className = 'swiss-round-label-sep';
@@ -483,7 +510,7 @@
       inner.appendChild(container);
       const matchCount = (round.matches || []).length;
 
-      slotRanges.forEach(([start, end], blockIdx) => {
+      blocks.forEach(([start, end], blockIdx) => {
         const blockWrap = document.createElement('div');
         blockWrap.className = 'swiss-round-block';
         if (blockIdx > 0) blockWrap.classList.add('swiss-round-block-sep');
@@ -496,17 +523,18 @@
             const [winner, loser] = getWinnerLoser(m);
             const cell = document.createElement('div');
             cell.className = 'match-cell' + (state.isAdmin ? ' admin' : '');
-            cell.dataset.section = 'swiss';
+            cell.dataset.tournamentId = tournament.id;
+            cell.dataset.lane = 'swiss';
             cell.dataset.roundIndex = String(ri);
             cell.dataset.matchIndex = String(slot);
             cell.innerHTML =
               '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
               '<span class="match-loser">' + escapeHtml(loser) + '</span>';
             if (state.isAdmin) {
-              cell.addEventListener('click', () => openEditModal('swiss', ri, slot));
+              cell.addEventListener('click', () => openEditModal(tournament.id, 'swiss', ri, slot));
             } else {
               cell.classList.add('clickable');
-              cell.addEventListener('click', () => openMatchOverlayFromBracketsCell('swiss', ri, slot, false));
+              cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, 'swiss', ri, slot));
             }
             slotEl.appendChild(cell);
           }
@@ -516,22 +544,27 @@
       });
       grid.appendChild(col);
     });
-    renderParcours();
-    renderSwissFlux();
+    renderParcours(panelEl, tournament);
+    renderSwissFlux(panelEl, tournament);
   }
 
-  function renderParcours() {
-    const table = $('parcours-table');
+  function renderParcours(panelEl, tournament) {
+    const d = safeDomId(tournament.id);
+    const table = panelEl.querySelector('#parcours-table-' + d);
     if (!table) return;
-    const standings = computeSwissStandings();
-    table.innerHTML = '<thead><tr><th>#</th><th>Équipe</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>R5</th><th>Statut</th></tr></thead><tbody></tbody>';
+    const standings = computeSwissStandings(tournament);
+    const rounds = tournament.rounds || [];
+    const thRounds = rounds.map((r, i) => {
+      const lab = (r.title != null && String(r.title).trim() !== '') ? String(r.title).trim() : ('R' + (i + 1));
+      return '<th>' + escapeHtml(lab) + '</th>';
+    }).join('');
+    table.innerHTML = '<thead><tr><th>#</th><th>Équipe</th>' + thRounds + '<th>Statut</th></tr></thead><tbody></tbody>';
     const tbody = table.querySelector('tbody');
     standings.forEach((s, idx) => {
       const tr = document.createElement('tr');
-      const rCells = [0, 1, 2, 3, 4].map((ri) => {
+      const rCells = rounds.map((_, ri) => {
         const pr = s.perRound[ri];
-        if (!pr) return '<td>—</td>';
-        if (pr.result === null) return '<td>—</td>';
+        if (!pr || pr.result === null) return '<td>—</td>';
         const rec = pr.wins + '-' + pr.losses;
         return '<td class="parcours-cell ' + (pr.result === 'W' ? 'parcours-w' : 'parcours-l') + '">' + pr.result + ' → ' + rec + '</td>';
       });
@@ -553,18 +586,9 @@
     });
   }
 
-  function renderEliminationTree(containerId, section, isLower) {
-    const container = $(containerId);
-    if (!container || !state.data || !state.data[section]) return;
-    let rounds = isLower ? (state.data[section].lowerRounds || []) : state.data[section].rounds;
-    const lowerLabels = ['Lower R1', 'Lower R2', 'Lower R3', 'Lower R4', 'Lower Final'];
-    if (isLower) rounds = rounds.slice(0, 5);
-    const labels = isLower
-      ? lowerLabels
-      : (section === 'elite' ? ['8e de finale', 'Quarts', 'Demi-finales', 'Upper Final'] : ['8e de finale', 'Quarts', 'Demi-finales', 'Upper Final']);
-    container.innerHTML = '';
-    const inner = document.createElement('div');
-    inner.className = 'bracket-tree-inner' + (isLower ? ' bracket-tree-inner-lower' : '');
+  function renderEliminationColumn(inner, tournament, rounds, lane, options) {
+    const isLower = options && options.isLower;
+    const labels = options && options.labels;
     if (isLower) {
       const ghostCol = document.createElement('div');
       ghostCol.className = 'bracket-round bracket-round-ghost';
@@ -574,7 +598,8 @@
     (rounds || []).forEach((round, ri) => {
       const col = document.createElement('div');
       col.className = 'bracket-round';
-      col.innerHTML = '<div class="bracket-round-title">' + escapeHtml(labels[ri] || '') + '</div><div class="bracket-round-matches"></div>';
+      const rt = (round.title != null && String(round.title).trim() !== '') ? String(round.title).trim() : ((labels && labels[ri]) || '');
+      col.innerHTML = '<div class="bracket-round-title">' + escapeHtml(rt) + '</div><div class="bracket-round-matches"></div>';
       const matchContainer = col.querySelector('.bracket-round-matches');
       (round.matches || []).forEach((m, mi) => {
         const [winner, loser] = getWinnerLoser(m);
@@ -582,86 +607,338 @@
         wrap.className = 'bracket-match-wrap';
         const cell = document.createElement('div');
         cell.className = 'bracket-match' + (state.isAdmin ? ' admin' : '');
-        cell.dataset.section = section;
+        cell.dataset.tournamentId = tournament.id;
+        cell.dataset.lane = lane;
         cell.dataset.roundIndex = String(ri);
         cell.dataset.matchIndex = String(mi);
-        cell.dataset.lowerBracket = isLower ? '1' : '';
+        cell.dataset.bracketRef = tournament.id + ':' + lane + ':' + ri + ':' + mi;
         cell.innerHTML =
           '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
           '<span class="match-loser">' + escapeHtml(loser) + '</span>';
         if (state.isAdmin) {
-          cell.addEventListener('click', () => openEditModal(section, ri, mi, isLower));
+          cell.addEventListener('click', () => openEditModal(tournament.id, lane, ri, mi));
         } else {
           cell.classList.add('clickable');
-          cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(section, ri, mi, isLower));
+          cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, lane, ri, mi));
         }
         wrap.appendChild(cell);
         matchContainer.appendChild(wrap);
       });
       inner.appendChild(col);
     });
-    container.appendChild(inner);
   }
 
-  function renderGrandFinale(containerId, section) {
-    const container = $(containerId);
-    if (!container || !state.data || !state.data[section]) return;
-    const lowerRounds = state.data[section].lowerRounds || [];
-    const round = lowerRounds[5];
-    container.innerHTML = '';
-    if (!round || !round.matches || round.matches.length === 0) return;
+  function renderEliminationTree(treeHost, tournament, lane) {
+    const tree = treeHost.querySelector('.bracket-tree-inner');
+    if (!tree || !tournament) return;
+    tree.innerHTML = '';
+    if (lane === 'upper' && tournament.drawBracketLinks !== false) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'bracket-links-svg');
+      svg.setAttribute('aria-hidden', 'true');
+      tree.appendChild(svg);
+    }
+    if (lane === 'upper') {
+      renderEliminationColumn(tree, tournament, tournament.upperRounds, 'upper', { isLower: false });
+    } else {
+      renderEliminationColumn(tree, tournament, (tournament.lowerRounds || []).slice(0, 6), 'lower', { isLower: true });
+    }
+  }
+
+  function renderGrandFinale(wrapEl, tournament) {
+    const host = wrapEl.querySelector('.bracket-grand-finale-wrap');
+    if (!host || !tournament || !tournament.grandFinale) {
+      if (host) host.innerHTML = '';
+      return;
+    }
+    const gf = tournament.grandFinale;
+    host.innerHTML = '';
     const inner = document.createElement('div');
     inner.className = 'bracket-grand-finale-inner';
-    inner.innerHTML = '<div class="bracket-round-title bracket-round-grand-final">Grande Finale</div><div class="bracket-round-matches"></div>';
+    const gtitle = (gf.title != null && String(gf.title).trim() !== '') ? String(gf.title).trim() : 'Grande Finale';
+    inner.innerHTML = '<div class="bracket-round-title bracket-round-grand-final">' + escapeHtml(gtitle) + '</div><div class="bracket-round-matches"></div>';
     const matchContainer = inner.querySelector('.bracket-round-matches');
-    round.matches.forEach((m, mi) => {
+    (gf.matches || []).forEach((m, mi) => {
       const [winner, loser] = getWinnerLoser(m);
       const wrap = document.createElement('div');
       wrap.className = 'bracket-match-wrap';
       const cell = document.createElement('div');
       cell.className = 'bracket-match' + (state.isAdmin ? ' admin' : '');
-      cell.dataset.section = section;
-      cell.dataset.roundIndex = '5';
+      cell.dataset.tournamentId = tournament.id;
+      cell.dataset.lane = 'grand';
+      cell.dataset.roundIndex = '0';
       cell.dataset.matchIndex = String(mi);
-      cell.dataset.lowerBracket = '1';
+      cell.dataset.bracketRef = tournament.id + ':grand:0:' + mi;
       cell.innerHTML =
         '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
         '<span class="match-loser">' + escapeHtml(loser) + '</span>';
       if (state.isAdmin) {
-        cell.addEventListener('click', () => openEditModal(section, 5, mi, true));
+        cell.addEventListener('click', () => openEditModal(tournament.id, 'grand', 0, mi));
       } else {
         cell.classList.add('clickable');
-        cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(section, 5, mi, true));
+        cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, 'grand', 0, mi));
       }
       wrap.appendChild(cell);
       matchContainer.appendChild(wrap);
     });
-    container.appendChild(inner);
+    host.appendChild(inner);
+  }
+
+  function drawBracketLinks(treeHost, tournament, lane) {
+    if (lane !== 'upper' || tournament.drawBracketLinks === false) return;
+    const treeInner = treeHost.querySelector('.bracket-tree-inner:not(.bracket-tree-inner-lower)');
+    if (!treeInner) return;
+    const panel = treeHost.closest('.brackets-panel');
+    if (panel && panel.classList.contains('hidden')) return;
+
+    const svg = treeInner.querySelector('.bracket-links-svg');
+    if (!svg) return;
+
+    const upper = tournament.upperRounds || [];
+    svg.innerHTML = '';
+
+    const w = Math.max(1, treeInner.scrollWidth, treeInner.offsetWidth);
+    const h = Math.max(1, treeInner.scrollHeight, treeInner.offsetHeight);
+    if (w <= 1 || h <= 1) return;
+
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.style.width = w + 'px';
+    svg.style.height = h + 'px';
+
+    const ir = treeInner.getBoundingClientRect();
+
+    function cellLocal(el) {
+      const r = el.getBoundingClientRect();
+      return {
+        xR: r.right - ir.left,
+        xL: r.left - ir.left,
+        yM: r.top + r.height / 2 - ir.top
+      };
+    }
+
+    function cellRect(ref) {
+      const safe = ref.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const el = treeInner.querySelector('[data-bracket-ref="' + safe + '"]');
+      if (!el) return null;
+      return cellLocal(el);
+    }
+
+    upper.forEach((round, ri) => {
+      (round.matches || []).forEach((m, mi) => {
+        const outs = (m.links && m.links.out) || [];
+        outs.forEach((ref) => {
+          if (ref.lane !== 'upper') return;
+          const fromRef = tournament.id + ':upper:' + ri + ':' + mi;
+          const toRef = tournament.id + ':upper:' + ref.roundIndex + ':' + ref.matchIndex;
+          const a = cellRect(fromRef);
+          const b = cellRect(toRef);
+          if (!a || !b) return;
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const mid = (a.xR + b.xL) / 2;
+          const d = 'M ' + a.xR + ' ' + a.yM + ' C ' + mid + ' ' + a.yM + ', ' + mid + ' ' + b.yM + ', ' + b.xL + ' ' + b.yM;
+          path.setAttribute('d', d);
+          path.setAttribute('class', 'bracket-link-path');
+          path.setAttribute('vector-effect', 'non-scaling-stroke');
+          svg.appendChild(path);
+        });
+      });
+    });
+  }
+
+  function renderEliminationPanel(panelEl, tournament) {
+    const d = safeDomId(tournament.id);
+    const upperTree = panelEl.querySelector('#tree-upper-' + d);
+    const lowerWrap = panelEl.querySelector('#lower-wrap-' + d);
+    const lowerBlock = panelEl.querySelector('#lower-block-' + d);
+    if (upperTree) renderEliminationTree(upperTree, tournament, 'upper');
+    renderGrandFinale(panelEl, tournament);
+    if (tournament.lowerRounds && tournament.lowerRounds.length && lowerWrap) {
+      if (lowerBlock) lowerBlock.classList.remove('hidden');
+      renderEliminationTree(lowerWrap, tournament, 'lower');
+    } else if (lowerBlock) {
+      lowerBlock.classList.add('hidden');
+    }
+  }
+
+  function buildTabsAndPanels() {
+    const tabsNav = $('brackets-tabs');
+    const panelsRoot = $('brackets-panels');
+    if (!tabsNav || !panelsRoot || !state.data || !state.data.tournaments) return;
+    const tournaments = state.data.tournaments;
+    const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',');
+    if (sig === builtPanelIds) return;
+    teardownUpperBracketLinkObservers();
+    builtPanelIds = sig;
+
+    tabsNav.innerHTML = '';
+    panelsRoot.innerHTML = '';
+    if (!tournaments.length) {
+      panelsRoot.innerHTML = '<p class="brackets-desc">Aucun tournoi configuré (brackets vides).</p>';
+      return;
+    }
+
+    tournaments.forEach((t, idx) => {
+      const d = safeDomId(t.id);
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'tab';
+      tab.role = 'tab';
+      tab.id = 'tab-' + d;
+      tab.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+      tab.dataset.panelId = 'panel-' + d;
+      tab.textContent = t.title || t.id;
+      tabsNav.appendChild(tab);
+
+      if (t.type === 'swiss') {
+        const section = document.createElement('section');
+        section.className = 'brackets-panel' + (idx === 0 ? '' : ' hidden');
+        section.id = 'panel-' + d;
+        section.dataset.tournamentId = t.id;
+        section.innerHTML =
+          '<p class="brackets-desc">' + escapeHtml(t.description || '') + '</p>' +
+          '<div class="swiss-views">' +
+          '<button type="button" class="swiss-view-tab active" data-swiss-view="matches" data-tid="' + escapeHtml(t.id) + '" aria-pressed="true">Rounds</button>' +
+          '<button type="button" class="swiss-view-tab" data-swiss-view="flux" data-tid="' + escapeHtml(t.id) + '" aria-pressed="false">Flux</button>' +
+          '<button type="button" class="swiss-view-tab" data-swiss-view="parcours" data-tid="' + escapeHtml(t.id) + '" aria-pressed="false">Qualifications</button>' +
+          '</div>' +
+          '<div class="swiss-matches-view" id="swiss-matches-view-' + d + '">' +
+          '<div class="swiss-grid" id="swiss-grid-' + d + '"></div></div>' +
+          '<div class="swiss-flux-view hidden" id="swiss-flux-view-' + d + '"><div class="swiss-flux" id="swiss-flux-' + d + '"></div></div>' +
+          '<div class="swiss-parcours-view hidden" id="swiss-parcours-view-' + d + '">' +
+          '<div class="parcours-table-wrap"><table class="parcours-table" id="parcours-table-' + d + '"></table></div></div>';
+        panelsRoot.appendChild(section);
+      } else {
+        const section = document.createElement('section');
+        section.className = 'brackets-panel' + (idx === 0 ? '' : ' hidden');
+        section.id = 'panel-' + d;
+        section.dataset.tournamentId = t.id;
+        const lowerVisible = t.lowerRounds && t.lowerRounds.length;
+        const upperLbl = escapeHtml(t.upperBracketLabel || 'Upper Bracket');
+        const lowerLbl = escapeHtml(t.lowerBracketLabel || 'Lower Bracket (perdants 8e)');
+        section.innerHTML =
+          '<p class="brackets-desc">' + escapeHtml(t.description || '') + '</p>' +
+          '<div class="bracket-panel-elim-wrap">' +
+          '<div class="bracket-row-upper">' +
+          '<div class="bracket-block bracket-block-upper">' +
+          '<div class="bracket-vertical-title" aria-hidden="true">' + upperLbl + '</div>' +
+          '<div class="bracket-tree" id="tree-upper-' + d + '">' +
+          '<div class="bracket-tree-inner"></div></div>' +
+          '</div>' +
+          '<div class="bracket-grand-finale-wrap" id="grand-wrap-' + d + '"></div>' +
+          '</div>' +
+          '<div class="bracket-block bracket-block-lower' + (lowerVisible ? '' : ' hidden') + '" id="lower-block-' + d + '">' +
+          '<div class="bracket-vertical-title bracket-vertical-title-lower" aria-hidden="true">' + lowerLbl + '</div>' +
+          '<div class="bracket-tree bracket-tree-lower" id="lower-wrap-' + d + '"><div class="bracket-tree-inner bracket-tree-inner-lower"></div></div>' +
+          '</div></div>';
+        panelsRoot.appendChild(section);
+      }
+    });
+
+  }
+
+  function onTabClick(e) {
+    const btn = e.target.closest('.tab[data-panel-id]');
+    if (!btn || !btn.closest('#brackets-tabs')) return;
+    const panelId = btn.dataset.panelId;
+    switchTab(panelId);
+    const panel = document.getElementById(panelId);
+    const tournamentId = panel && panel.dataset.tournamentId;
+    if (!tournamentId) return;
+    const t = getTournamentById(tournamentId);
+    if (t && t.type === 'swiss') {
+      const h = tournamentId === 'swiss' ? 'swiss' : tournamentId;
+      if (location.hash !== '#' + h) location.hash = h;
+      switchSwissView(tournamentId, 'matches');
+    } else if (location.hash !== '#' + tournamentId) {
+      location.hash = tournamentId;
+    }
+    scheduleUpperBracketLinksRedraw();
+  }
+
+  function onSwissViewClick(e) {
+    const btn = e.target.closest('.swiss-view-tab[data-swiss-view]');
+    if (!btn) return;
+    const tid = btn.dataset.tid;
+    const view = btn.dataset.swissView;
+    if (tid && view) switchSwissView(tid, view);
+  }
+
+  function switchTab(panelDomId) {
+    document.querySelectorAll('#brackets-panels .brackets-panel').forEach((p) => p.classList.add('hidden'));
+    document.querySelectorAll('#brackets-tabs .tab').forEach((t) => t.setAttribute('aria-selected', 'false'));
+    const panel = document.getElementById(panelDomId);
+    const tabId = panelDomId.replace('panel-', 'tab-');
+    const tab = document.getElementById(tabId);
+    if (panel) panel.classList.remove('hidden');
+    if (tab) tab.setAttribute('aria-selected', 'true');
+  }
+
+  function switchSwissView(tournamentId, view) {
+    const d = safeDomId(tournamentId);
+    const panel = document.getElementById('panel-' + d);
+    if (!panel) return;
+    const isMatches = view === 'matches';
+    const isFlux = view === 'flux';
+    const isParcours = view === 'parcours';
+    panel.querySelectorAll('.swiss-view-tab').forEach((b) => {
+      const active = b.dataset.swissView === view;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active);
+    });
+    const mv = panel.querySelector('#swiss-matches-view-' + d);
+    const fv = panel.querySelector('#swiss-flux-view-' + d);
+    const pv = panel.querySelector('#swiss-parcours-view-' + d);
+    if (mv) mv.classList.toggle('hidden', !isMatches);
+    if (fv) fv.classList.toggle('hidden', !isFlux);
+    if (pv) pv.classList.toggle('hidden', !isParcours);
+    let hash;
+    if (tournamentId === 'swiss') {
+      hash = view === 'matches' ? 'swiss' : 'swiss-' + view;
+    } else {
+      hash = view === 'matches' ? tournamentId : tournamentId + '-' + view;
+    }
+    if (location.hash !== '#' + hash) location.hash = hash;
   }
 
   function renderAll() {
-    renderSwiss();
-    renderEliminationTree('elite-tree', 'elite', false);
-    renderEliminationTree('elite-lower-tree', 'elite', true);
-    renderGrandFinale('elite-grand-finale', 'elite');
-    renderEliminationTree('amateur-tree', 'amateur', false);
-    renderEliminationTree('amateur-lower-tree', 'amateur', true);
-    renderGrandFinale('amateur-grand-finale', 'amateur');
+    if (!state.data || !state.data.tournaments) return;
+    buildTabsAndPanels();
+    state.data.tournaments.forEach((t) => {
+      const d = safeDomId(t.id);
+      const panel = document.getElementById('panel-' + d);
+      if (!panel) return;
+      if (t.type === 'swiss') renderSwiss(panel, t);
+      else renderEliminationPanel(panel, t);
+    });
+    setupUpperBracketLinkObservers();
+    scheduleUpperBracketLinksRedraw();
   }
 
   function getMatchesFromDb() {
     return (state.data && state.data.matchesFromDb) || [];
   }
 
-  function openEditModal(section, roundIndex, matchIndex, isLower) {
-    if (!state.data || !state.data[section]) return;
-    const rounds = isLower ? (state.data[section].lowerRounds || []) : state.data[section].rounds;
-    const m = rounds[roundIndex] && rounds[roundIndex].matches[matchIndex];
+  function openEditModal(tournamentId, lane, roundIndex, matchIndex) {
+    const t = getTournamentById(tournamentId);
+    if (!t) return;
+    let m = null;
+    if (t.type === 'swiss' || lane === 'swiss') {
+      m = t.rounds && t.rounds[roundIndex] && t.rounds[roundIndex].matches[matchIndex];
+    } else if (lane === 'grand' && t.grandFinale) {
+      m = t.grandFinale.matches[matchIndex];
+    } else if (lane === 'lower') {
+      m = t.lowerRounds && t.lowerRounds[roundIndex] && t.lowerRounds[roundIndex].matches[matchIndex];
+    } else {
+      m = t.upperRounds && t.upperRounds[roundIndex] && t.upperRounds[roundIndex].matches[matchIndex];
+    }
     if (!m) return;
-    $('edit-section').value = section;
+    $('edit-tournamentId').value = tournamentId;
+    $('edit-lane').value = lane;
     $('edit-roundIndex').value = roundIndex;
     $('edit-matchIndex').value = matchIndex;
-    $('edit-lowerBracket').value = isLower ? '1' : '';
+    $('edit-section').value = tournamentId;
+    $('edit-lowerBracket').value = (lane === 'lower' || lane === 'grand') ? '1' : '';
     const hintEl = $('edit-demo-hint');
     hintEl.classList.add('hidden');
     hintEl.textContent = '';
@@ -728,19 +1005,24 @@
 
   async function submitEdit(e) {
     e.preventDefault();
-    const section = $('edit-section').value;
+    const tournamentId = ($('edit-tournamentId').value || '').trim();
+    const lane = ($('edit-lane').value || 'upper').trim();
     const roundIndex = parseInt($('edit-roundIndex').value, 10);
     const matchIndex = parseInt($('edit-matchIndex').value, 10);
-    const lowerBracket = ($('edit-lowerBracket').value || '') === '1';
     const payload = {
+      tournamentId,
+      lane,
+      roundIndex,
+      matchIndex,
+      section: tournamentId,
+      lowerBracket: lane === 'lower' || lane === 'grand',
       teamA: ($('edit-teamA').value || '').trim(),
       teamB: ($('edit-teamB').value || '').trim(),
       winner: ($('edit-winnerValue').value || '').trim() || null,
-      demoId: ($('edit-demoId').value || '').trim() || null,
-      lowerBracket
+      demoId: ($('edit-demoId').value || '').trim() || null
     };
     try {
-      await saveMatch(section, roundIndex, matchIndex, payload);
+      await saveMatch(payload);
       closeEditModal();
       renderAll();
     } catch (err) {
@@ -788,38 +1070,6 @@
     }
   }
 
-  function switchTab(panelId) {
-    document.querySelectorAll('.brackets-panel').forEach((p) => p.classList.add('hidden'));
-    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', 'false'));
-    const panel = $(panelId);
-    const tabId = 'tab-' + panelId.replace('panel-', '');
-    const tab = $(tabId);
-    if (panel) panel.classList.remove('hidden');
-    if (tab) tab.setAttribute('aria-selected', 'true');
-    const tabName = panelId.replace('panel-', '');
-    if (tabName && location.hash !== '#' + tabName) {
-      if (tabName === 'swiss' && (location.hash === '#swiss-flux' || location.hash === '#swiss-parcours')) return;
-      location.hash = tabName;
-    }
-  }
-
-  function switchSwissView(view) {
-    const isMatches = view === 'matches';
-    const isFlux = view === 'flux';
-    const isParcours = view === 'parcours';
-    $('swiss-tab-matches').classList.toggle('active', isMatches);
-    $('swiss-tab-matches').setAttribute('aria-pressed', isMatches);
-    $('swiss-tab-flux').classList.toggle('active', isFlux);
-    $('swiss-tab-flux').setAttribute('aria-pressed', isFlux);
-    $('swiss-tab-parcours').classList.toggle('active', isParcours);
-    $('swiss-tab-parcours').setAttribute('aria-pressed', isParcours);
-    $('swiss-matches-view').classList.toggle('hidden', !isMatches);
-    $('swiss-flux-view').classList.toggle('hidden', !isFlux);
-    $('swiss-parcours-view').classList.toggle('hidden', !isParcours);
-    const hash = view === 'matches' ? 'swiss' : 'swiss-' + view;
-    if (location.hash !== '#' + hash) location.hash = hash;
-  }
-
   function updateBracketsFooterTime() {
     const el = document.getElementById('data-updated-at');
     if (el) el.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -834,10 +1084,60 @@
       const nextJson = JSON.stringify(next);
       if (prevJson !== nextJson) {
         state.data = next;
+        builtPanelIds = '';
         renderAll();
         updateBracketsFooterTime();
       }
     } catch (_) { /* ignore */ }
+  }
+
+  let resizeTimer = null;
+  function onResizeRedrawLinks() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => scheduleUpperBracketLinksRedraw(), 120);
+  }
+
+  function applyHashRouting() {
+    try {
+      const raw = (location.hash || '').replace(/^#/, '');
+      const hash = raw.toLowerCase();
+      const tournaments = (state.data && state.data.tournaments) || [];
+
+      if (hash === 'swiss' || hash === 'swiss-flux' || hash === 'swiss-parcours') {
+        switchTab('panel-' + safeDomId('swiss'));
+        if (hash === 'swiss-flux') switchSwissView('swiss', 'flux');
+        else if (hash === 'swiss-parcours') switchSwissView('swiss', 'parcours');
+        else switchSwissView('swiss', 'matches');
+        return;
+      }
+
+      for (let i = 0; i < tournaments.length; i++) {
+        const t = tournaments[i];
+        const tidl = String(t.id).toLowerCase();
+        if (t.type === 'swiss') {
+          if (hash === tidl) {
+            switchTab('panel-' + safeDomId(t.id));
+            switchSwissView(t.id, 'matches');
+            return;
+          }
+          if (hash === tidl + '-flux') {
+            switchTab('panel-' + safeDomId(t.id));
+            switchSwissView(t.id, 'flux');
+            return;
+          }
+          if (hash === tidl + '-parcours') {
+            switchTab('panel-' + safeDomId(t.id));
+            switchSwissView(t.id, 'parcours');
+            return;
+          }
+        } else if (hash === tidl) {
+          switchTab('panel-' + safeDomId(t.id));
+          return;
+        }
+      }
+    } finally {
+      scheduleUpperBracketLinksRedraw();
+    }
   }
 
   async function init() {
@@ -845,38 +1145,27 @@
       await fetchBrackets();
       updateBracketsFooterTime();
     } catch (e) {
-      state.data = { swiss: { rounds: [] }, elite: { rounds: [] }, amateur: { rounds: [] } };
+      state.data = { schemaVersion: 2, tournaments: [] };
     }
     state.isAdmin = !!state.token;
     updateAdminUI();
 
     setInterval(pollBrackets, 5000);
+    window.addEventListener('resize', onResizeRedrawLinks);
 
-    $('tab-swiss').addEventListener('click', () => switchTab('panel-swiss'));
-    $('tab-elite').addEventListener('click', () => switchTab('panel-elite'));
-    $('tab-amateur').addEventListener('click', () => switchTab('panel-amateur'));
+    const tabsNavInit = $('brackets-tabs');
+    if (tabsNavInit) tabsNavInit.addEventListener('click', onTabClick);
+    const panelsRootInit = $('brackets-panels');
+    if (panelsRootInit) panelsRootInit.addEventListener('click', onSwissViewClick);
 
-    const hash = (location.hash || '').replace(/^#/, '').toLowerCase();
-    if (hash === 'elite' || hash === 'amateur') switchTab('panel-' + hash);
-    else if (hash === 'swiss' || hash === 'swiss-flux' || hash === 'swiss-parcours') {
-      switchTab('panel-swiss');
-      if (hash === 'swiss-flux') switchSwissView('flux');
-      else if (hash === 'swiss-parcours') switchSwissView('parcours');
+    applyHashRouting();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => scheduleUpperBracketLinksRedraw()).catch(() => {});
     }
 
     window.addEventListener('hashchange', () => {
-      const h = (location.hash || '').replace(/^#/, '').toLowerCase();
-      if (h === 'elite' || h === 'amateur') switchTab('panel-' + h);
-      else if (h === 'swiss' || h === 'swiss-flux' || h === 'swiss-parcours') {
-        switchTab('panel-swiss');
-        if (h === 'swiss-flux') switchSwissView('flux');
-        else if (h === 'swiss-parcours') switchSwissView('parcours');
-      }
+      applyHashRouting();
     });
-
-    $('swiss-tab-matches').addEventListener('click', () => switchSwissView('matches'));
-    $('swiss-tab-flux').addEventListener('click', () => switchSwissView('flux'));
-    $('swiss-tab-parcours').addEventListener('click', () => switchSwissView('parcours'));
 
     $('btn-admin').addEventListener('click', showLoginModal);
     $('btn-logout').addEventListener('click', () => {
