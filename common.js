@@ -957,6 +957,78 @@
     }
 
     let docListenerAttached = false;
+    let repositionHandler = null;
+
+    function clearDropdownPlacement() {
+      dropdown.style.position = '';
+      dropdown.style.left = '';
+      dropdown.style.width = '';
+      dropdown.style.top = '';
+      dropdown.style.bottom = '';
+      dropdown.style.maxHeight = '';
+      dropdown.style.zIndex = '';
+    }
+
+    function positionDropdownInViewport() {
+      if (!isDropdownOpen()) return;
+      const rect = trigger.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const vh = vv ? vv.height : window.innerHeight;
+      const vw = vv ? vv.width : window.innerWidth;
+      const vx = vv ? vv.offsetLeft : 0;
+      const vy = vv ? vv.offsetTop : 0;
+      const margin = 8;
+      const gap = 4;
+      const capPx = 280;
+
+      const viewBottom = vy + vh - margin;
+      const viewTop = vy + margin;
+      const spaceBelow = viewBottom - rect.bottom - gap;
+      const spaceAbove = rect.top - viewTop - gap;
+
+      const openDown = spaceBelow >= 120 || spaceBelow >= spaceAbove;
+      const maxH = Math.min(capPx, Math.max(96, openDown ? spaceBelow : spaceAbove));
+
+      dropdown.style.position = 'fixed';
+      dropdown.style.zIndex = '10050';
+      const w = Math.max(rect.width, 160);
+      let left = rect.left;
+      if (left + w > vx + vw - margin) left = vx + vw - margin - w;
+      if (left < vx + margin) left = vx + margin;
+      dropdown.style.left = left + 'px';
+      dropdown.style.width = w + 'px';
+      dropdown.style.maxHeight = maxH + 'px';
+
+      if (openDown) {
+        dropdown.style.top = (rect.bottom + gap) + 'px';
+        dropdown.style.bottom = 'auto';
+      } else {
+        dropdown.style.top = 'auto';
+        dropdown.style.bottom = (vh + vy - rect.top + gap) + 'px';
+      }
+    }
+
+    function attachRepositionListeners() {
+      if (repositionHandler) return;
+      repositionHandler = function () {
+        positionDropdownInViewport();
+      };
+      window.addEventListener('scroll', repositionHandler, true);
+      window.addEventListener('resize', repositionHandler);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', repositionHandler);
+      }
+    }
+
+    function detachRepositionListeners() {
+      if (!repositionHandler) return;
+      window.removeEventListener('scroll', repositionHandler, true);
+      window.removeEventListener('resize', repositionHandler);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', repositionHandler);
+      }
+      repositionHandler = null;
+    }
 
     function onDocMouseDown(e) {
       if (!root.isConnected) {
@@ -1060,14 +1132,22 @@
       trigger.setAttribute('aria-expanded', 'true');
       searchInput.value = '';
       applyFilter();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          positionDropdownInViewport();
+        });
+      });
       searchInput.focus();
       attachDoc();
+      attachRepositionListeners();
     }
 
     function closePanel() {
       if (document.activeElement === searchInput) {
         try { trigger.focus(); } catch (_) {}
       }
+      detachRepositionListeners();
+      clearDropdownPlacement();
       setDropdownOpen(false);
       trigger.setAttribute('aria-expanded', 'false');
       searchInput.value = '';
