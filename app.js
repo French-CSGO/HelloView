@@ -104,13 +104,32 @@
   }
 
   const FILTER_PARAMS = { bracket: 'bracket', match: 'match', team: 'team', autoScroll: 'autoScroll' };
+  const AUTOSCROLL_COOKIE = 'helloview_autoscroll';
+
+  function readAutoScrollEnabled() {
+    const urlAuto = new URLSearchParams(window.location.search).get(FILTER_PARAMS.autoScroll);
+    if (urlAuto === '1') return true;
+    if (urlAuto === '0') return false;
+    try {
+      const m = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(AUTOSCROLL_COOKIE) + '=([^;]*)'));
+      const c = m ? decodeURIComponent(m[1]) : null;
+      return c === '1';
+    } catch (_) {
+      return false;
+    }
+  }
 
   function applyFiltersFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const bracket = params.get(FILTER_PARAMS.bracket);
     if (bracket && bracket.trim()) state.bracketSection = bracket.trim();
-    const match = params.get(FILTER_PARAMS.match);
-    if (match && match.trim()) state.matchId = match.trim();
+    const autoscrollOn = readAutoScrollEnabled();
+    if (!autoscrollOn) {
+      const match = params.get(FILTER_PARAMS.match);
+      if (match && match.trim()) state.matchId = match.trim();
+    } else {
+      state.matchId = '';
+    }
     const team = params.get(FILTER_PARAMS.team);
     if (team) state.teamName = decodeURIComponent(team);
   }
@@ -262,6 +281,13 @@
         if (state.filtersInited) populateBracketFilterSelect();
         state.lastUpdated = new Date();
         applyFiltersFromUrl();
+        const autoscrollOn = readAutoScrollEnabled();
+        document.body.classList.toggle('autoscroll-active', autoscrollOn);
+        if (autoscrollOn) {
+          closeSidePanel();
+          const urlP = new URLSearchParams(window.location.search);
+          if (urlP.has(FILTER_PARAMS.match)) syncFiltersToUrl();
+        }
         updateFooterDate();
         if (!state.filtersInited) {
           initFilters();
@@ -710,24 +736,23 @@
   (function initAutoScroll() {
     const SCROLL_SPEED = 18;
     const STEP_MS = 50;
-    const COOKIE_NAME = 'helloview_autoscroll';
     const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 
-    function getAutoScrollCookie() {
-      const match = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(COOKIE_NAME) + '=([^;]*)'));
-      return match ? decodeURIComponent(match[1]) : null;
-    }
     function setAutoScrollCookie(enabled) {
-      document.cookie = encodeURIComponent(COOKIE_NAME) + '=' + (enabled ? '1' : '0') + '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax';
+      document.cookie = encodeURIComponent(AUTOSCROLL_COOKIE) + '=' + (enabled ? '1' : '0') + '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax';
     }
 
-    const urlAuto = new URLSearchParams(window.location.search).get('autoScroll');
-    let autoScrollEnabled = urlAuto === '1';
-    if (urlAuto !== '1' && urlAuto !== '0') autoScrollEnabled = getAutoScrollCookie() === '1';
     const toggleEl = $('auto-scroll-toggle');
+    let autoScrollEnabled = readAutoScrollEnabled();
     if (toggleEl) {
       toggleEl.checked = autoScrollEnabled;
       toggleEl.setAttribute('aria-checked', String(autoScrollEnabled));
+    }
+    document.body.classList.toggle('autoscroll-active', autoScrollEnabled);
+    if (autoScrollEnabled) {
+      state.matchId = '';
+      if (matchSelect) matchSelect.value = '';
+      closeSidePanel();
     }
 
     function setupAutoScroll(wrap) {
@@ -767,7 +792,19 @@
         autoScrollEnabled = toggleEl.checked;
         toggleEl.setAttribute('aria-checked', String(toggleEl.checked));
         setAutoScrollCookie(autoScrollEnabled);
+        if (autoScrollEnabled) {
+          state.matchId = '';
+          if (matchSelect) matchSelect.value = '';
+          closeSidePanel();
+        } else {
+          syncFiltersToUrl();
+          applyFiltersFromUrl();
+          if (matchSelect) matchSelect.value = state.matchId || '';
+        }
         syncFiltersToUrl();
+        document.body.classList.toggle('autoscroll-active', autoScrollEnabled);
+        updateClearFiltersButton();
+        render();
       });
     }
   })();
