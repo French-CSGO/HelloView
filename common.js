@@ -192,6 +192,124 @@
     });
   }
 
+  function playerSeriesAggKey(p) {
+    const sid = p.steam_id != null ? String(p.steam_id).trim() : '';
+    const team = String(p.team_name || '').trim();
+    if (sid) return sid + '\0' + team;
+    return 'n:' + String(p.name || '').trim() + '\0' + team;
+  }
+
+  function dmgRowTotal(p) {
+    if (p.damage_health != null && p.damage_armor != null) return Number(p.damage_health) + Number(p.damage_armor);
+    if (p.damage_health != null) return Number(p.damage_health);
+    if (p.damage_armor != null) return Number(p.damage_armor);
+    return null;
+  }
+
+  function avgValidNumbers(vals) {
+    const v = vals.filter((x) => x != null && !Number.isNaN(Number(x)));
+    return v.length ? v.reduce((a, b) => a + Number(b), 0) / v.length : null;
+  }
+
+  function buildSeriesAggregatePlayerRow(rows) {
+    if (!rows || !rows.length) return null;
+    const sorted = rows.slice().sort((a, b) => (a.index || 0) - (b.index || 0));
+    const out = Object.assign({}, sorted[0]);
+    const sumFn = (fn) => rows.reduce((s, p) => s + (Number(fn(p)) || 0), 0);
+    out.kill_count = sumFn((p) => p.kill_count);
+    out.death_count = sumFn((p) => p.death_count);
+    out.assist_count = sumFn((p) => p.assist_count);
+    out.headshot_count = sumFn((p) => p.headshot_count);
+    out.mvp_count = sumFn((p) => p.mvp_count);
+    out.utility_damage = sumFn((p) => p.utility_damage);
+    out.first_kill_count = sumFn((p) => p.first_kill_count);
+    out.first_death_count = sumFn((p) => p.first_death_count);
+    out.trade_kill_count = sumFn((p) => p.trade_kill_count);
+    out.trade_death_count = sumFn((p) => p.trade_death_count);
+    out.first_trade_kill_count = sumFn((p) => p.first_trade_kill_count);
+    out.first_trade_death_count = sumFn((p) => p.first_trade_death_count);
+    out.score = sumFn((p) => p.score);
+    out.bomb_planted_count = sumFn((p) => p.bomb_planted_count);
+    out.bomb_defused_count = sumFn((p) => p.bomb_defused_count);
+    out.five_kill_count = sumFn((p) => p.five_kill_count);
+    out.four_kill_count = sumFn((p) => p.four_kill_count);
+    out.three_kill_count = sumFn((p) => p.three_kill_count);
+    out.two_kill_count = sumFn((p) => p.two_kill_count);
+    out.damage_health = null;
+    out.damage_armor = null;
+    const kdDiffs = rows.map((p) => {
+      if (p.kill_count == null || p.death_count == null) return null;
+      return Number(p.kill_count) - Number(p.death_count);
+    }).filter((x) => x != null);
+    const kds = rows.map((p) => {
+      const d = Number(p.death_count);
+      if (!d || p.kill_count == null) return null;
+      return Number(p.kill_count) / d;
+    }).filter((x) => x != null);
+    const kasts = rows.map((p) => p.kast).filter((x) => x != null && !Number.isNaN(Number(x)));
+    const udrs = rows.map((p) => p.utility_damage_per_round).filter((x) => x != null && !Number.isNaN(Number(x)));
+    const hsPcts = rows.map((p) => {
+      const k = Number(p.kill_count);
+      if (!k || p.headshot_count == null) return null;
+      return (Number(p.headshot_count) / k) * 100;
+    }).filter((x) => x != null);
+    const h2 = rows.map((p) => p.hltv_rating_2).filter((x) => x != null && !Number.isNaN(Number(x)));
+    const h1 = rows.map((p) => p.hltv_rating).filter((x) => x != null && !Number.isNaN(Number(x)));
+    const dmgs = rows.map(dmgRowTotal).filter((x) => x != null && !Number.isNaN(Number(x)));
+    out._seriesDisplay = {
+      kdDiff: avgValidNumbers(kdDiffs),
+      kd: avgValidNumbers(kds),
+      totalDmg: dmgs.length ? dmgs.reduce((a, b) => a + b, 0) : null,
+      kast: avgValidNumbers(kasts),
+      udr: avgValidNumbers(udrs),
+      hsPct: avgValidNumbers(hsPcts),
+      hltv2: avgValidNumbers(h2),
+      hltv: avgValidNumbers(h1)
+    };
+    return out;
+  }
+
+  function aggregateTeamPlayersForSeries(allPlayers, seriesIds, teamName) {
+    const idSet = new Set(seriesIds.map(String));
+    const subset = (allPlayers || []).filter(
+      (p) => idSet.has(String(p.match_checksum)) && String(p.team_name || '').trim() === String(teamName || '').trim()
+    );
+    const byKey = new Map();
+    subset.forEach((p) => {
+      const k = playerSeriesAggKey(p);
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(p);
+    });
+    return [...byKey.values()].map(buildSeriesAggregatePlayerRow).filter(Boolean);
+  }
+
+  function normTeamCmp(s) {
+    return String(s || '').trim().toLowerCase();
+  }
+
+  function countSeriesWinsOnMatches(teamA, teamB, demoIds, matches) {
+    let wa = 0;
+    let wb = 0;
+    (demoIds || []).forEach((id) => {
+      const row = (matches || []).find((x) => String(x.id) === String(id));
+      if (!row || row.winner_name == null || String(row.winner_name).trim() === '') return;
+      const nw = normTeamCmp(row.winner_name);
+      const na = normTeamCmp(teamA);
+      const nb = normTeamCmp(teamB);
+      if (nw && na && nw === na) wa++;
+      else if (nw && nb && nw === nb) wb++;
+    });
+    return { wa, wb };
+  }
+
+  function pickTeamsFromSeriesIds(seriesIds, matches) {
+    for (let i = 0; i < (seriesIds || []).length; i++) {
+      const m = (matches || []).find((x) => String(x.id) === String(seriesIds[i]));
+      if (m && m.team_a_name && m.team_b_name) return { nameA: m.team_a_name, nameB: m.team_b_name, ref: m };
+    }
+    return { nameA: null, nameB: null, ref: null };
+  }
+
   function buildMatchOverlayPlayerTable(teamName, score, teamPlayers, isWinner, data, options) {
     const teams = (data && data.teams) || [];
     const onPlayerClick = (options && options.onPlayerClick) || (function () {});
@@ -209,15 +327,26 @@
     table.innerHTML = '<thead><tr>' + headers.map((h) => '<th>' + escapeHtml(h) + '</th>').join('') + '</tr></thead><tbody></tbody>';
     const tbody = table.querySelector('tbody');
     teamPlayers.forEach((p) => {
+      const sd = p._seriesDisplay || null;
       const k = p.kill_count != null ? p.kill_count : '—';
       const a = p.assist_count != null ? p.assist_count : '—';
       const d = p.death_count != null ? p.death_count : '—';
-      const kdDiff = (p.kill_count != null && p.death_count != null) ? (p.kill_count - p.death_count) : null;
-      const kd = (p.death_count != null && p.death_count > 0 && p.kill_count != null) ? (p.kill_count / p.death_count) : null;
-      const totalDmg = (p.damage_health != null && p.damage_armor != null) ? (p.damage_health + p.damage_armor) : (p.damage_health != null ? p.damage_health : p.damage_armor);
+      let kdDiff = (p.kill_count != null && p.death_count != null) ? (p.kill_count - p.death_count) : null;
+      let kd = (p.death_count != null && p.death_count > 0 && p.kill_count != null) ? (p.kill_count / p.death_count) : null;
+      let totalDmg = (p.damage_health != null && p.damage_armor != null) ? (p.damage_health + p.damage_armor) : (p.damage_health != null ? p.damage_health : p.damage_armor);
       const hs = p.headshot_count != null ? p.headshot_count : '—';
-      const hsPct = (p.kill_count != null && p.kill_count > 0 && p.headshot_count != null) ? (p.headshot_count / p.kill_count * 100) : null;
-      const r2Class = rating2Class(p.hltv_rating_2);
+      let hsPct = (p.kill_count != null && p.kill_count > 0 && p.headshot_count != null) ? (p.headshot_count / p.kill_count * 100) : null;
+      if (sd) {
+        if (sd.kdDiff != null) kdDiff = sd.kdDiff;
+        if (sd.kd != null) kd = sd.kd;
+        if (sd.totalDmg != null) totalDmg = sd.totalDmg;
+        if (sd.hsPct != null) hsPct = sd.hsPct;
+      }
+      const kastVal = sd && sd.kast != null ? sd.kast : p.kast;
+      const udrVal = sd && sd.udr != null ? sd.udr : p.utility_damage_per_round;
+      const h2Val = sd && sd.hltv2 != null ? sd.hltv2 : p.hltv_rating_2;
+      const h1Val = sd && sd.hltv != null ? sd.hltv : p.hltv_rating;
+      const r2Class = rating2Class(h2Val);
       const cells = [
         escapeHtml(p.name),
         formatNum(k, 0),
@@ -226,13 +355,13 @@
         kdDiff != null ? formatNum(kdDiff, 0) : '—',
         kd != null ? formatNum(kd, 2) : '—',
         totalDmg != null ? formatNum(totalDmg, 0) : '—',
-        p.kast != null ? formatNum(p.kast, 1) + '%' : '—',
-        p.utility_damage_per_round != null ? formatNum(p.utility_damage_per_round, 1) : '—',
+        kastVal != null ? formatNum(kastVal, 1) + '%' : '—',
+        udrVal != null ? formatNum(udrVal, 1) : '—',
         hs !== '—' ? String(hs) : '—',
         hsPct != null ? formatNum(hsPct, 1) + '%' : '—',
         p.mvp_count != null ? formatNum(p.mvp_count, 0) : '—',
-        p.hltv_rating_2 != null ? '<span class="num ' + r2Class + '">' + formatNum(p.hltv_rating_2, 2) + '</span>' : '—',
-        p.hltv_rating != null ? formatNum(p.hltv_rating, 2) : '—',
+        h2Val != null ? '<span class="num ' + r2Class + '">' + formatNum(h2Val, 2) + '</span>' : '—',
+        h1Val != null ? formatNum(h1Val, 2) : '—',
         p.utility_damage != null ? formatNum(p.utility_damage, 0) : '—',
         p.first_kill_count != null ? formatNum(p.first_kill_count, 0) : '—',
         p.first_death_count != null ? formatNum(p.first_death_count, 0) : '—',
@@ -262,69 +391,223 @@
     return block;
   }
 
+  function playerSortRating2(p) {
+    if (p._seriesDisplay && p._seriesDisplay.hltv2 != null) return p._seriesDisplay.hltv2;
+    return p.hltv_rating_2 || 0;
+  }
+
+  function appendDemoDownloadControls(metaEl, matchObjs) {
+    const list = (matchObjs || []).filter((m) => m && m.demo_download_url);
+    if (!list.length) return;
+    list.forEach((m, idx) => {
+      const dlSpan = document.createElement('span');
+      dlSpan.className = 'overlay-meta-item overlay-demo-dl';
+      const label = document.createElement('strong');
+      label.textContent = list.length > 1 ? 'demo ' + (idx + 1) : 'demo';
+      dlSpan.appendChild(label);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'overlay-demo-download-btn';
+      btn.textContent = m.demo_download_filename || 'demo.dem';
+      const url = m.demo_download_url;
+      btn.addEventListener('click', () => { window.location.assign(url); });
+      dlSpan.appendChild(btn);
+      metaEl.appendChild(dlSpan);
+    });
+  }
+
   function openMatchOverlay(checksum, data, options) {
+    options = options || {};
     const overlay = $('match-overlay');
     const titleEl = $('overlay-title');
     const scoreLineEl = $('overlay-header-score-line');
     const metaEl = $('overlay-match-meta');
     const teamsEl = $('overlay-match-teams');
     if (!overlay || !data) return;
-    const match = (data.matches || []).find((m) => m.id === checksum);
-    const players = (data.players || []).filter((p) => p.match_checksum === checksum);
-    const teamAName = match && (match.team_a_name != null) ? match.team_a_name : null;
-    const teamBName = match && (match.team_b_name != null) ? match.team_b_name : null;
-    const names = [...new Set(players.map((p) => p.team_name))];
-    const nameA = teamAName || names[0];
-    const nameB = teamBName || names[1];
-    const scoreA = match && match.team_a_score != null ? match.team_a_score : '—';
-    const scoreB = match && match.team_b_score != null ? match.team_b_score : '—';
-    const winnerName = match && match.winner_name ? match.winner_name : null;
-    const winnerTeam = winnerName === nameA ? nameA : nameB;
-    const loserTeam = winnerName === nameA ? nameB : nameA;
-    const winnerScore = winnerName === nameA ? scoreA : scoreB;
-    const loserScore = winnerName === nameA ? scoreB : scoreA;
-    const playersWinner = players.filter((p) => p.team_name === winnerTeam).sort((a, b) => (b.hltv_rating_2 || 0) - (a.hltv_rating_2 || 0));
-    const playersLoser = players.filter((p) => p.team_name === loserTeam).sort((a, b) => (b.hltv_rating_2 || 0) - (a.hltv_rating_2 || 0));
 
-    titleEl.textContent = match ? (match.name || match.label) : 'Détail du match';
-    const teams = data.teams || [];
-    if (scoreLineEl) {
-      scoreLineEl.innerHTML = '<span class="overlay-score-team overlay-score-team-clickable" role="button" tabindex="0">' + escapeHtml(nameA) + ' ' + teamLogoHtml(nameA, teams, 'team-logo-20') + '</span> <span class="overlay-score-box">' + escapeHtml(String(scoreA)) + ' – ' + escapeHtml(String(scoreB)) + '</span> <span class="overlay-score-team overlay-score-team-clickable" role="button" tabindex="0">' + teamLogoHtml(nameB, teams, 'team-logo-20') + ' ' + escapeHtml(nameB) + '</span>';
-      const onTeamClick = (options && options.onTeamClick) || (function () {});
-      scoreLineEl.querySelectorAll('.overlay-score-team-clickable').forEach((el, i) => {
-        const teamName = i === 0 ? nameA : nameB;
-        el.addEventListener('click', () => onTeamClick(teamName));
-        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTeamClick(teamName); } });
-      });
+    let seriesIdsOpt = Array.isArray(options.seriesDemoIds) && options.seriesDemoIds.length
+      ? options.seriesDemoIds.map((x) => String(x).trim()).filter(Boolean)
+      : null;
+    const matchPrimary = (data.matches || []).find((m) => String(m.id) === String(checksum));
+    let seriesIds = seriesIdsOpt;
+    if (!seriesIds || seriesIds.length < 2) {
+      if (matchPrimary && Array.isArray(matchPrimary.series_demo_ids) && matchPrimary.series_demo_ids.length >= 2) {
+        seriesIds = matchPrimary.series_demo_ids.map((x) => String(x).trim()).filter(Boolean);
+      }
+    }
+    const bestOf = options.seriesBestOf != null ? Number(options.seriesBestOf)
+      : (matchPrimary && matchPrimary.series_best_of != null ? Number(matchPrimary.series_best_of) : 1);
+    const isBo3Series = bestOf === 3 && seriesIds && seriesIds.length >= 2;
+    if (!isBo3Series) {
+      seriesIds = [String(checksum)];
     }
 
-    const durationStr = match && match.duration_seconds != null ? formatDuration(match.duration_seconds) : '—';
-    const mapStr = match && match.map_name ? escapeHtml(match.map_name) : '—';
-    const serverStr = (match && match.server_name) ? escapeHtml(match.server_name) : '—';
-    metaEl.innerHTML = '<span class="overlay-meta-item"><strong>Map</strong> ' + mapStr + '</span>' +
-      '<span class="overlay-meta-item"><strong>Score</strong> ' + escapeHtml(winnerTeam) + ' ' + winnerScore + ' – ' + loserScore + ' ' + escapeHtml(loserTeam) + '</span>' +
-      '<span class="overlay-meta-item"><strong>Durée</strong> ' + durationStr + '</span>' +
-      '<span class="overlay-meta-item"><strong>Serveur</strong> ' + serverStr + '</span>';
+    overlay._hvMatchOverlayState = {
+      checksum: String(checksum),
+      data,
+      options,
+      seriesIds,
+      isBo3Series,
+      scope: isBo3Series ? 'global' : '0'
+    };
 
-    if (match && match.demo_download_url) {
-      const dlSpan = document.createElement('span');
-      dlSpan.className = 'overlay-meta-item overlay-demo-dl';
-      const label = document.createElement('strong');
-      label.textContent = 'demo';
-      dlSpan.appendChild(label);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'overlay-demo-download-btn';
-      btn.textContent = match.demo_download_filename || 'demo.dem';
-      const url = match.demo_download_url;
-      btn.addEventListener('click', () => { window.location.assign(url); });
-      dlSpan.appendChild(btn);
-      metaEl.appendChild(dlSpan);
+    function refreshMatchOverlay() {
+      const st = overlay._hvMatchOverlayState;
+      const d = st.data;
+      const opts = st.options || {};
+      const matches = d.matches || [];
+      const allPlayers = d.players || [];
+      const teams = d.teams || [];
+      const scope = st.scope;
+      const ids = st.seriesIds;
+
+      const activeChecksum = scope === 'global' ? null : ids[Number(scope)] || ids[0];
+      const viewMatch = activeChecksum
+        ? matches.find((m) => String(m.id) === String(activeChecksum))
+        : (pickTeamsFromSeriesIds(ids, matches).ref || matchPrimary);
+
+      const picked = pickTeamsFromSeriesIds(ids, matches);
+      let nameA = picked.nameA;
+      let nameB = picked.nameB;
+      if (!nameA || !nameB) {
+        const pl0 = allPlayers.filter((p) => String(p.match_checksum) === String(st.checksum));
+        const ns = [...new Set(pl0.map((p) => p.team_name))];
+        nameA = nameA || ns[0];
+        nameB = nameB || ns[1];
+      }
+
+      let scoreA = '—';
+      let scoreB = '—';
+      let winnerName = null;
+      let durationStr = '—';
+      let serverStr = '—';
+      let titleText = 'Détail du match';
+
+      let mapPlain = '—';
+      if (st.isBo3Series && scope === 'global') {
+        const { wa, wb } = countSeriesWinsOnMatches(nameA, nameB, ids, matches);
+        scoreA = String(wa);
+        scoreB = String(wb);
+        const sumDur = ids.reduce((s, id) => {
+          const mm = matches.find((m) => String(m.id) === String(id));
+          return s + (mm && mm.duration_seconds != null ? Number(mm.duration_seconds) : 0);
+        }, 0);
+        durationStr = sumDur > 0 ? formatDuration(sumDur) : '—';
+        mapPlain = 'Série (' + ids.length + ' cartes)';
+        winnerName = wa > wb ? nameA : (wb > wa ? nameB : ((viewMatch && viewMatch.winner_name) || nameA));
+        titleText = (viewMatch && (viewMatch.name || viewMatch.label)) ? (viewMatch.name || viewMatch.label) + ' · Global' : 'Match · Global';
+      } else {
+        const m = viewMatch || matches.find((x) => String(x.id) === String(activeChecksum || st.checksum));
+        if (m) {
+          scoreA = m.team_a_score != null ? m.team_a_score : '—';
+          scoreB = m.team_b_score != null ? m.team_b_score : '—';
+          winnerName = m.winner_name || null;
+          durationStr = m.duration_seconds != null ? formatDuration(m.duration_seconds) : '—';
+          mapPlain = m.map_name || '—';
+          serverStr = m.server_name ? escapeHtml(m.server_name) : '—';
+          titleText = m.name || m.label || titleText;
+        }
+      }
+
+      const winnerTeam = winnerName && nameA && normTeamCmp(winnerName) === normTeamCmp(nameA) ? nameA
+        : (winnerName && nameB && normTeamCmp(winnerName) === normTeamCmp(nameB) ? nameB
+          : (nameA && nameB ? nameA : null));
+      const loserTeam = winnerTeam === nameA ? nameB : nameA;
+      const winnerScore = winnerTeam === nameA ? scoreA : scoreB;
+      const loserScore = winnerTeam === nameA ? scoreB : scoreA;
+
+      let playersWinner;
+      let playersLoser;
+      if (st.isBo3Series && scope === 'global') {
+        playersWinner = aggregateTeamPlayersForSeries(allPlayers, ids, winnerTeam).sort((a, b) => playerSortRating2(b) - playerSortRating2(a));
+        playersLoser = aggregateTeamPlayersForSeries(allPlayers, ids, loserTeam).sort((a, b) => playerSortRating2(b) - playerSortRating2(a));
+      } else {
+        const ck = String(activeChecksum || st.checksum);
+        const pl = allPlayers.filter((p) => String(p.match_checksum) === ck);
+        playersWinner = pl.filter((p) => p.team_name === winnerTeam).sort((a, b) => playerSortRating2(b) - playerSortRating2(a));
+        playersLoser = pl.filter((p) => p.team_name === loserTeam).sort((a, b) => playerSortRating2(b) - playerSortRating2(a));
+      }
+
+      if (titleEl) titleEl.textContent = titleText;
+
+      if (scoreLineEl) {
+        const midBox = escapeHtml(String(scoreA)) + ' – ' + escapeHtml(String(scoreB));
+        scoreLineEl.innerHTML = '<span class="overlay-score-team overlay-score-team-clickable" role="button" tabindex="0">' + escapeHtml(nameA) + ' ' + teamLogoHtml(nameA, teams, 'team-logo-20') + '</span> <span class="overlay-score-box">' + midBox + '</span> <span class="overlay-score-team overlay-score-team-clickable" role="button" tabindex="0">' + teamLogoHtml(nameB, teams, 'team-logo-20') + ' ' + escapeHtml(nameB) + '</span>';
+        const onTeamClick = (opts.onTeamClick) || (function () {});
+        scoreLineEl.querySelectorAll('.overlay-score-team-clickable').forEach((el, i) => {
+          const teamName = i === 0 ? nameA : nameB;
+          el.addEventListener('click', () => onTeamClick(teamName));
+          el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTeamClick(teamName); } });
+        });
+      }
+
+      metaEl.innerHTML = '';
+
+      if (st.isBo3Series) {
+        const scopeWrap = document.createElement('span');
+        scopeWrap.className = 'overlay-meta-item overlay-map-scope-wrap';
+        const scopeLabel = document.createElement('strong');
+        scopeLabel.textContent = 'Vue';
+        scopeWrap.appendChild(scopeLabel);
+        const sel = document.createElement('select');
+        sel.className = 'overlay-map-scope-select';
+        sel.setAttribute('aria-label', 'Carte ou vue globale');
+        const optG = document.createElement('option');
+        optG.value = 'global';
+        optG.textContent = 'Global';
+        sel.appendChild(optG);
+        ids.forEach((id, i) => {
+          const mm = matches.find((m) => String(m.id) === String(id));
+          const mapLabel = (mm && mm.map_name) ? mm.map_name : ('MAP' + (i + 1));
+          const o = document.createElement('option');
+          o.value = String(i);
+          o.textContent = 'MAP' + (i + 1) + (mm && mm.map_name ? ' · ' + mm.map_name : '');
+          sel.appendChild(o);
+        });
+        sel.value = st.scope === 'global' ? 'global' : String(st.scope);
+        sel.addEventListener('change', () => {
+          overlay._hvMatchOverlayState.scope = sel.value === 'global' ? 'global' : sel.value;
+          refreshMatchOverlay();
+        });
+        scopeWrap.appendChild(sel);
+        metaEl.appendChild(scopeWrap);
+      }
+
+      const mapRow = document.createElement('span');
+      mapRow.className = 'overlay-meta-item';
+      mapRow.innerHTML = '<strong>Map</strong> ' + escapeHtml(mapPlain);
+      metaEl.appendChild(mapRow);
+
+      const scoreMeta = document.createElement('span');
+      scoreMeta.className = 'overlay-meta-item';
+      scoreMeta.innerHTML = '<strong>Score</strong> ' + escapeHtml(winnerTeam || '—') + ' ' + escapeHtml(String(winnerScore)) + ' – ' + escapeHtml(String(loserScore)) + ' ' + escapeHtml(loserTeam || '—');
+      metaEl.appendChild(scoreMeta);
+
+      const durRow = document.createElement('span');
+      durRow.className = 'overlay-meta-item';
+      durRow.innerHTML = '<strong>Durée</strong> ' + durationStr;
+      metaEl.appendChild(durRow);
+
+      const srvRow = document.createElement('span');
+      srvRow.className = 'overlay-meta-item';
+      srvRow.innerHTML = '<strong>Serveur</strong> ' + serverStr;
+      metaEl.appendChild(srvRow);
+
+      let demoSources = [];
+      if (st.isBo3Series && scope === 'global') {
+        demoSources = ids.map((id) => matches.find((m) => String(m.id) === String(id))).filter(Boolean);
+      } else {
+        const dm = matches.find((m) => String(m.id) === String(activeChecksum || st.checksum));
+        if (dm) demoSources = [dm];
+      }
+      appendDemoDownloadControls(metaEl, demoSources);
+
+      teamsEl.innerHTML = '';
+      teamsEl.appendChild(buildMatchOverlayPlayerTable(winnerTeam, winnerScore, playersWinner, true, d, opts));
+      teamsEl.appendChild(buildMatchOverlayPlayerTable(loserTeam, loserScore, playersLoser, false, d, opts));
     }
 
-    teamsEl.innerHTML = '';
-    teamsEl.appendChild(buildMatchOverlayPlayerTable(winnerTeam, winnerScore, playersWinner, true, data, options));
-    teamsEl.appendChild(buildMatchOverlayPlayerTable(loserTeam, loserScore, playersLoser, false, data, options));
+    refreshMatchOverlay();
 
     overlay.removeAttribute('hidden');
     bringOverlayToFront(overlay);

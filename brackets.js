@@ -156,12 +156,13 @@
     onMatchClick: openMatchOverlayFromBrackets
   });
 
-  async function openMatchOverlayFromBrackets(checksum) {
+  async function openMatchOverlayFromBrackets(checksum, seriesOpts) {
     if (!window.HelloView || !window.HelloView.openMatchOverlay) return;
     try {
       const data = await fetchStats();
       if (!data) return;
-      window.HelloView.openMatchOverlay(checksum, data, bracketsMatchOverlayOptions(data));
+      const base = bracketsMatchOverlayOptions(data);
+      window.HelloView.openMatchOverlay(checksum, data, Object.assign({}, base, seriesOpts || {}));
       document.body.style.overflow = 'hidden';
     } catch (_) {
       /* stats indisponibles */
@@ -189,7 +190,11 @@
     if (!m) return;
     const demoIds = getMatchDemoIds(m);
     if (demoIds.length) {
-      openMatchOverlayFromBrackets(demoIds[0]);
+      const bo = getMatchBestOf(m);
+      const seriesOpts = bo === 3 && demoIds.length >= 2
+        ? { seriesDemoIds: demoIds, seriesBestOf: 3 }
+        : {};
+      void openMatchOverlayFromBrackets(demoIds[0], seriesOpts);
       return;
     }
     const minimalData = {
@@ -305,6 +310,13 @@
     if (!ids.length) return '';
     const { winsA, winsB } = countSeriesMaps(m.teamA, m.teamB, ids, getMatchesFromDb());
     if (winsA === 0 && winsB === 0) return '';
+    const a = (m.teamA || '').trim();
+    const b = (m.teamB || '').trim();
+    const w = (m.winner || '').trim();
+    if (winsA > winsB) return winsA + '–' + winsB;
+    if (winsB > winsA) return winsB + '–' + winsA;
+    if (normName(w) === normName(a)) return winsA + '–' + winsB;
+    if (normName(w) === normName(b)) return winsB + '–' + winsA;
     return winsA + '–' + winsB;
   }
 

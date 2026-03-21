@@ -264,6 +264,24 @@
   margin-right: 0.35rem;
 }
 
+.overlay-map-scope-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+
+.overlay-map-scope-select {
+  font: inherit;
+  font-size: inherit;
+  color: var(--text);
+  background: var(--bg-secondary, #1a1a24);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  max-width: min(100%, 16rem);
+}
+
 .overlay-match-teams {
   flex: 1;
   overflow: auto;

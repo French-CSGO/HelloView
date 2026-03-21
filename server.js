@@ -84,6 +84,15 @@ function setBracketsData(data) {
   }
 }
 
+function attachSeriesFieldsToMatchObj(m, checksum, seriesLookup) {
+  if (!m || !seriesLookup || !checksum) return;
+  const s = seriesLookup.get(String(checksum));
+  if (s && s.demoIds && s.demoIds.length >= 2 && s.bestOf === 3) {
+    m.series_demo_ids = s.demoIds;
+    m.series_best_of = s.bestOf;
+  }
+}
+
 function requireAdmin(req, res, next) {
   const token = req.headers.authorization && req.headers.authorization.replace(/^Bearer\s+/i, '');
   if (!BRACKETS_ADMIN_PASSWORD || !token || !adminTokens.has(token)) {
@@ -551,6 +560,7 @@ app.get('/api/stats', async (req, res) => {
 
     const matchesRows = matchesResult.rows || [];
     const demoIdx = demoHostFiles.getDemoBasenameIndex(demoHostDir);
+    const seriesLookup = bracketsModel.buildSeriesDemoLookup(getBracketsData());
     const matches = matchesRows.map((row, i) => {
       const sides = teamsByMatch[row.checksum] || [];
       const teamA = sides[0] || {};
@@ -582,6 +592,7 @@ app.get('/api/stats', async (req, res) => {
         m.demo_download_url = dl.url;
         m.demo_download_filename = dl.filename;
       }
+      attachSeriesFieldsToMatchObj(m, row.checksum, seriesLookup);
       return m;
     });
 
@@ -707,6 +718,7 @@ app.get('/api/match/:checksum', async (req, res) => {
       match.demo_download_url = dlOne.url;
       match.demo_download_filename = dlOne.filename;
     }
+    attachSeriesFieldsToMatchObj(match, matchRow.checksum, bracketsModel.buildSeriesDemoLookup(getBracketsData()));
 
     const players = (playersResult.rows || []).map((row) => ({
       id: row.id,
