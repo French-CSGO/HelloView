@@ -872,9 +872,11 @@
     const selectClass = (config.selectClass || '').trim();
     const onChange = typeof config.onChange === 'function' ? config.onChange : null;
     const ariaLabel = config.ariaLabel != null ? String(config.ariaLabel) : 'Liste déroulante';
+    const clearable = !!config.clearable;
+    const clearButtonAriaLabel = config.clearButtonAriaLabel != null ? String(config.clearButtonAriaLabel) : 'Effacer la sélection';
 
     const root = document.createElement('div');
-    root.className = 'hv-search-combo' + (comboClass ? ' ' + comboClass : '');
+    root.className = 'hv-search-combo' + (comboClass ? ' ' + comboClass : '') + (clearable ? ' hv-search-combo--clearable' : '');
 
     const select = document.createElement('select');
     if (config.selectId) select.id = config.selectId;
@@ -885,12 +887,15 @@
     const shell = document.createElement('div');
     shell.className = 'hv-search-combo-shell';
 
-    const trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'hv-search-combo-trigger';
+    /** Bouton HTML interdit à l’intérieur d’un autre : avec croix, le déclencheur est un div combobox. */
+    const trigger = clearable ? document.createElement('div') : document.createElement('button');
+    if (!clearable) trigger.type = 'button';
+    else trigger.tabIndex = 0;
+    trigger.className = 'hv-search-combo-trigger' + (clearable ? ' hv-search-combo-trigger--with-clear' : '');
     trigger.setAttribute('aria-haspopup', 'listbox');
     trigger.setAttribute('aria-expanded', 'false');
     trigger.setAttribute('aria-label', ariaLabel);
+    if (clearable) trigger.setAttribute('role', 'combobox');
 
     const valueSpan = document.createElement('span');
     valueSpan.className = 'hv-search-combo-trigger-text';
@@ -899,7 +904,17 @@
     chevron.className = 'hv-search-combo-chevron';
     chevron.setAttribute('aria-hidden', 'true');
 
+    let clearBtn = null;
     trigger.appendChild(valueSpan);
+    if (clearable) {
+      clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'hv-search-combo-clear';
+      clearBtn.setAttribute('aria-label', clearButtonAriaLabel);
+      clearBtn.setAttribute('hidden', '');
+      clearBtn.textContent = '\u00D7';
+      trigger.appendChild(clearBtn);
+    }
     trigger.appendChild(chevron);
 
     const dropdown = document.createElement('div');
@@ -943,6 +958,8 @@
     function getComboSiblingScope() {
       const slots = appendTo.closest('#edit-demo-slots');
       if (slots) return slots;
+      const filtersBar = appendTo.closest('.filters');
+      if (filtersBar) return filtersBar;
       const filterWrap = appendTo.closest('.filter-match-wrap');
       if (filterWrap) return filterWrap;
       return appendTo.parentElement || document.body;
@@ -1073,6 +1090,11 @@
     function updateTriggerText() {
       const sel = select.selectedOptions[0];
       valueSpan.textContent = sel ? sel.textContent : emptyLabel;
+      if (clearBtn) {
+        const has = select.value !== emptyValue;
+        if (has) clearBtn.removeAttribute('hidden');
+        else clearBtn.setAttribute('hidden', '');
+      }
     }
 
     function highlightActive() {
@@ -1162,13 +1184,25 @@
       highlightActive();
     }
 
+    if (clearBtn) {
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (select.value === emptyValue) return;
+        pickValue(emptyValue);
+      });
+      clearBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    }
+
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (clearBtn && (e.target === clearBtn || clearBtn.contains(e.target))) return;
       if (isDropdownOpen()) closePanel();
       else openPanel();
     });
 
     trigger.addEventListener('keydown', (e) => {
+      if (clearBtn && (e.target === clearBtn || clearBtn.contains(e.target))) return;
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         if (isDropdownOpen()) return;
         e.preventDefault();

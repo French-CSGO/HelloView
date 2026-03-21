@@ -900,6 +900,53 @@
   box-shadow: 0 0 0 2px rgba(63, 202, 255, 0.2);
 }
 
+.hv-search-combo-trigger--with-clear {
+  cursor: pointer;
+}
+
+.hv-search-combo-trigger--with-clear:focus-visible {
+  outline: none;
+  border-color: var(--accent, #3fcaff);
+  box-shadow: 0 0 0 2px rgba(63, 202, 255, 0.2);
+}
+
+.hv-search-combo-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  margin: 0 0.15rem 0 0;
+  padding: 0 0.2rem;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text-muted, #9a97b0);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+/* L’attribut [hidden] seul est écrasé par display:flex ci-dessus (même spécificité) */
+.hv-search-combo-clear[hidden] {
+  display: none !important;
+}
+
+.hv-search-combo-clear:hover {
+  color: var(--text, #e8e6f0);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hv-search-combo-clear:focus {
+  outline: none;
+}
+
+.hv-search-combo-clear:focus-visible {
+  box-shadow: 0 0 0 2px rgba(63, 202, 255, 0.35);
+}
+
 .hv-search-combo-trigger-text {
   flex: 1;
   min-width: 0;

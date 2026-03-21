@@ -40,21 +40,17 @@
 
   <main class="main">
     <div class="filters">
-      <label class="filter-bracket">
+      <label class="filter-bracket-wrap">
         <span>Bracket</span>
-        <select id="filter-bracket" aria-label="Filtrer par bracket">
-          <option value="">Tous</option>
-        </select>
+        <div id="filter-bracket-combo-host" class="filter-bracket-combo-host"></div>
       </label>
       <label class="filter-match-wrap">
         <span>Match <span class="new-matches-badge" id="new-matches-badge" aria-hidden="true">Nouveaux</span></span>
         <div id="filter-match-combo-host" class="filter-match-combo-host"></div>
       </label>
-      <label class="filter-team">
+      <label class="filter-team-wrap">
         <span>Équipe</span>
-        <select id="filter-team" aria-label="Filtrer par équipe">
-          <option value="">Toutes</option>
-        </select>
+        <div id="filter-team-combo-host" class="filter-team-combo-host"></div>
       </label>
       <button type="button" id="btn-clear-filters" class="btn-clear-filters hidden" aria-label="Supprimer tous les filtres">Supprimer tous les filtres</button>
     </div>

@@ -263,6 +263,17 @@ body {
   color: var(--text-muted);
 }
 
+.filter-bracket-wrap,
+.filter-team-wrap {
+  flex: 0 1 14rem;
+  min-width: 0;
+}
+
+.filter-bracket-combo-host,
+.filter-team-combo-host {
+  width: 100%;
+}
+
 /* Filtre Match : plus large que Bracket / Équipe pour les titres longs */
 .filter-match-wrap {
   flex: 1 1 22rem;
@@ -275,12 +286,16 @@ body {
   max-width: none;
 }
 
+.filter-bracket-hv-combo .hv-search-combo-trigger,
+.filter-team-hv-combo .hv-search-combo-trigger,
 .filter-match-hv-combo .hv-search-combo-trigger {
   padding: 0.5rem 0.85rem;
   font-size: 0.9rem;
   background: var(--bg-card);
 }
 
+.filter-bracket-hv-combo .hv-search-combo-dropdown,
+.filter-team-hv-combo .hv-search-combo-dropdown,
 .filter-match-hv-combo .hv-search-combo-dropdown {
   z-index: 500;
 }

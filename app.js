@@ -55,8 +55,10 @@
       if (el) el.classList.toggle('overlay-on-top', el === overlayEl);
     });
   }
-  const bracketSelect = $('filter-bracket');
-  const teamSelect = $('filter-team');
+  let filterBracketSelectEl = null;
+  let bracketFilterCombo = null;
+  let filterTeamSelectEl = null;
+  let teamFilterCombo = null;
   let filterMatchSelectEl = null;
   let matchFilterCombo = null;
 
@@ -199,7 +201,8 @@
     state.bracketSection = '';
     state.matchId = '';
     state.teamName = '';
-    if (bracketSelect) bracketSelect.value = '';
+    if (filterBracketSelectEl) filterBracketSelectEl.value = '';
+    if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
     updateFiltersFromData([]);
     syncFiltersToUrl();
     render();
@@ -261,33 +264,39 @@
   }
 
   function updateFiltersFromData(newMatchIds) {
-    if (!state.data || !filterMatchSelectEl || !matchFilterCombo || !teamSelect) return;
+    if (!state.data) return;
     const { players } = state.data;
-    const newSet = new Set(newMatchIds || []);
-    const matches = getMatchesForMatchSelect();
 
-    filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
-    matches.forEach((m) => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = getMatchListLabel(m);
-      if (newSet.has(m.id)) opt.className = 'match-new';
-      filterMatchSelectEl.appendChild(opt);
-    });
-    const matchIdsInList = new Set(matches.map((m) => m.id));
-    if (state.matchId && !matchIdsInList.has(state.matchId)) state.matchId = '';
-    filterMatchSelectEl.value = state.matchId;
-    matchFilterCombo.rebuildListFromSelect();
+    if (filterMatchSelectEl && matchFilterCombo) {
+      const newSet = new Set(newMatchIds || []);
+      const matches = getMatchesForMatchSelect();
 
-    teamSelect.innerHTML = '<option value="">Toutes</option>';
-    const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
-    teams.forEach((t) => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      teamSelect.appendChild(opt);
-    });
-    teamSelect.value = state.teamName;
+      filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
+      matches.forEach((m) => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = getMatchListLabel(m);
+        if (newSet.has(m.id)) opt.className = 'match-new';
+        filterMatchSelectEl.appendChild(opt);
+      });
+      const matchIdsInList = new Set(matches.map((m) => m.id));
+      if (state.matchId && !matchIdsInList.has(state.matchId)) state.matchId = '';
+      filterMatchSelectEl.value = state.matchId;
+      matchFilterCombo.rebuildListFromSelect();
+    }
+
+    if (filterTeamSelectEl && teamFilterCombo) {
+      filterTeamSelectEl.innerHTML = '<option value="">Toutes les équipes</option>';
+      const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
+      teams.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        filterTeamSelectEl.appendChild(opt);
+      });
+      filterTeamSelectEl.value = state.teamName;
+      teamFilterCombo.rebuildListFromSelect();
+    }
   }
 
   function applyDataUpdatedEffect() {
@@ -327,9 +336,9 @@
         state.data = json;
         state.bracketsData = bracketsData;
         state.matchIdsByBracket = getMatchIdsByBracket(bracketsData);
+        applyFiltersFromUrl();
         if (state.filtersInited) populateBracketFilterSelect();
         state.lastUpdated = new Date();
-        applyFiltersFromUrl();
         const autoscrollOn = readAnyAutoScrollEnabled();
         document.body.classList.toggle('autoscroll-active', autoscrollOn);
         if (autoscrollOn) closeSidePanel();
@@ -365,16 +374,16 @@
   }
 
   function populateBracketFilterSelect() {
-    if (!bracketSelect) return;
+    if (!filterBracketSelectEl) return;
     const cur = state.bracketSection || '';
-    bracketSelect.innerHTML = '<option value="">Tous</option>';
+    filterBracketSelectEl.innerHTML = '<option value="">Tous les brackets</option>';
     const bd = state.bracketsData;
     if (bd && bd.schemaVersion === 2 && Array.isArray(bd.tournaments)) {
       bd.tournaments.forEach((t) => {
         const opt = document.createElement('option');
         opt.value = t.id;
         opt.textContent = t.title || t.id;
-        bracketSelect.appendChild(opt);
+        filterBracketSelectEl.appendChild(opt);
       });
     } else {
       const labels = { swiss: 'Swiss', elite: 'Arbre Elite', amateur: 'Arbre Amateur' };
@@ -382,20 +391,53 @@
         const opt = document.createElement('option');
         opt.value = id;
         opt.textContent = labels[id];
-        bracketSelect.appendChild(opt);
+        filterBracketSelectEl.appendChild(opt);
       });
     }
-    const vals = [...bracketSelect.options].map((o) => o.value);
-    if (cur && vals.includes(cur)) bracketSelect.value = cur;
-    else bracketSelect.value = '';
+    const vals = [...filterBracketSelectEl.options].map((o) => o.value);
+    if (cur && vals.includes(cur)) filterBracketSelectEl.value = cur;
+    else filterBracketSelectEl.value = '';
+    if (bracketFilterCombo) bracketFilterCombo.rebuildListFromSelect();
   }
 
   function initFilters() {
+    const bvCreate = window.HelloView && window.HelloView.createSearchableSelectCombo;
+
+    const bHost = $('filter-bracket-combo-host');
+    if (bHost && bvCreate) {
+      bHost.innerHTML = '';
+      bracketFilterCombo = bvCreate({
+        appendTo: bHost,
+        selectId: 'filter-bracket',
+        emptyValue: '',
+        emptyLabel: 'Tous les brackets',
+        items: [],
+        searchPlaceholder: 'Filtrer les brackets…',
+        comboClass: 'filter-bracket-hv-combo',
+        ariaLabel: 'Filtrer par bracket',
+        clearable: true,
+        clearButtonAriaLabel: 'Effacer le filtre bracket',
+        onChange: function () {
+          state.bracketSection = filterBracketSelectEl ? filterBracketSelectEl.value : '';
+          const matchIdsInList = getMatchIdsForCurrentBracket();
+          if (state.matchId && matchIdsInList && !matchIdsInList.has(state.matchId)) state.matchId = '';
+          updateFiltersFromData([]);
+          syncFiltersToUrl();
+          render();
+        }
+      });
+      filterBracketSelectEl = bracketFilterCombo.select;
+    } else {
+      bracketFilterCombo = null;
+      filterBracketSelectEl = null;
+    }
+
     populateBracketFilterSelect();
+
     const host = $('filter-match-combo-host');
-    if (host && window.HelloView && window.HelloView.createSearchableSelectCombo) {
+    if (host && bvCreate) {
       host.innerHTML = '';
-      matchFilterCombo = window.HelloView.createSearchableSelectCombo({
+      matchFilterCombo = bvCreate({
         appendTo: host,
         selectId: 'filter-match',
         emptyValue: '',
@@ -404,6 +446,8 @@
         searchPlaceholder: 'Filtrer les matchs…',
         comboClass: 'filter-match-hv-combo',
         ariaLabel: 'Filtrer par match',
+        clearable: true,
+        clearButtonAriaLabel: 'Effacer le filtre match',
         onChange: function () {
           state.matchId = filterMatchSelectEl ? filterMatchSelectEl.value : '';
           syncFiltersToUrl();
@@ -428,33 +472,56 @@
       });
       matchFilterCombo.rebuildListFromSelect();
     }
-    teamSelect.innerHTML = '<option value="">Toutes</option>';
-    const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
-    teams.forEach((t) => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      teamSelect.appendChild(opt);
-    });
+
+    const tHost = $('filter-team-combo-host');
+    if (tHost && bvCreate) {
+      tHost.innerHTML = '';
+      teamFilterCombo = bvCreate({
+        appendTo: tHost,
+        selectId: 'filter-team',
+        emptyValue: '',
+        emptyLabel: 'Toutes les équipes',
+        items: [],
+        searchPlaceholder: 'Filtrer les équipes…',
+        comboClass: 'filter-team-hv-combo',
+        ariaLabel: 'Filtrer par équipe',
+        clearable: true,
+        clearButtonAriaLabel: 'Effacer le filtre équipe',
+        onChange: function () {
+          state.teamName = filterTeamSelectEl ? filterTeamSelectEl.value : '';
+          syncFiltersToUrl();
+          render();
+        }
+      });
+      filterTeamSelectEl = teamFilterCombo.select;
+    } else {
+      teamFilterCombo = null;
+      filterTeamSelectEl = null;
+    }
+
+    if (filterTeamSelectEl) {
+      filterTeamSelectEl.innerHTML = '<option value="">Toutes les équipes</option>';
+      const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
+      teams.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        filterTeamSelectEl.appendChild(opt);
+      });
+      teamFilterCombo.rebuildListFromSelect();
+    }
+
     const matchOpts = filterMatchSelectEl ? Array.from(filterMatchSelectEl.options).map((o) => o.value) : [];
-    const teamOpts = Array.from(teamSelect.options).map((o) => o.value);
+    const teamOpts = filterTeamSelectEl ? Array.from(filterTeamSelectEl.options).map((o) => o.value) : [];
     if (state.matchId && !matchOpts.includes(state.matchId)) state.matchId = '';
     if (state.teamName && !teamOpts.includes(state.teamName)) state.teamName = '';
+    if (filterBracketSelectEl) filterBracketSelectEl.value = state.bracketSection || '';
+    if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
     if (filterMatchSelectEl) filterMatchSelectEl.value = state.matchId || '';
     if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
-    teamSelect.value = state.teamName || '';
-    if (bracketSelect) {
-      bracketSelect.value = state.bracketSection || '';
-      bracketSelect.addEventListener('change', () => {
-        state.bracketSection = bracketSelect.value || '';
-        const matchIdsInList = getMatchIdsForCurrentBracket();
-        if (state.matchId && matchIdsInList && !matchIdsInList.has(state.matchId)) state.matchId = '';
-        updateFiltersFromData([]);
-        syncFiltersToUrl();
-        render();
-      });
-    }
-    teamSelect.addEventListener('change', () => { state.teamName = teamSelect.value; syncFiltersToUrl(); render(); });
+    if (filterTeamSelectEl) filterTeamSelectEl.value = state.teamName || '';
+    if (teamFilterCombo) teamFilterCombo.syncUIFromSelect();
+
     const clearBtn = $('btn-clear-filters');
     if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
   }
@@ -876,9 +943,17 @@
       } else {
         syncFiltersToUrl();
         applyFiltersFromUrl();
+        if (filterBracketSelectEl) {
+          filterBracketSelectEl.value = state.bracketSection || '';
+          if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
+        }
         if (filterMatchSelectEl) {
           filterMatchSelectEl.value = state.matchId || '';
           if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
+        }
+        if (filterTeamSelectEl) {
+          filterTeamSelectEl.value = state.teamName || '';
+          if (teamFilterCombo) teamFilterCombo.syncUIFromSelect();
         }
       }
       syncFiltersToUrl();
