@@ -904,7 +904,16 @@
 
     const dropdown = document.createElement('div');
     dropdown.className = 'hv-search-combo-dropdown';
-    dropdown.hidden = true;
+    dropdown.setAttribute('hidden', '');
+
+    function isDropdownOpen() {
+      return !dropdown.hasAttribute('hidden');
+    }
+
+    function setDropdownOpen(open) {
+      if (open) dropdown.removeAttribute('hidden');
+      else dropdown.setAttribute('hidden', '');
+    }
 
     const searchWrap = document.createElement('div');
     searchWrap.className = 'hv-search-combo-search-bar';
@@ -930,6 +939,22 @@
     root.appendChild(select);
     root.appendChild(shell);
     appendTo.appendChild(root);
+
+    function getComboSiblingScope() {
+      const slots = appendTo.closest('#edit-demo-slots');
+      if (slots) return slots;
+      const filterWrap = appendTo.closest('.filter-match-wrap');
+      if (filterWrap) return filterWrap;
+      return appendTo.parentElement || document.body;
+    }
+
+    function closeOtherSearchCombos() {
+      getComboSiblingScope().querySelectorAll('.hv-search-combo').forEach((el) => {
+        if (el === root) return;
+        const fn = el._hvComboClose;
+        if (typeof fn === 'function') fn();
+      });
+    }
 
     let docListenerAttached = false;
 
@@ -1029,8 +1054,9 @@
     }
 
     function openPanel() {
+      closeOtherSearchCombos();
       if (!list.children.length && select.options.length) rebuildListFromSelect();
-      dropdown.hidden = false;
+      setDropdownOpen(true);
       trigger.setAttribute('aria-expanded', 'true');
       searchInput.value = '';
       applyFilter();
@@ -1039,26 +1065,32 @@
     }
 
     function closePanel() {
-      dropdown.hidden = true;
+      if (document.activeElement === searchInput) {
+        try { trigger.focus(); } catch (_) {}
+      }
+      setDropdownOpen(false);
       trigger.setAttribute('aria-expanded', 'false');
       searchInput.value = '';
       applyFilter();
       detachDoc();
     }
 
+    root._hvComboClose = closePanel;
+
     function syncUIFromSelect() {
       updateTriggerText();
       highlightActive();
     }
 
-    trigger.addEventListener('click', () => {
-      if (!dropdown.hidden) closePanel();
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isDropdownOpen()) closePanel();
       else openPanel();
     });
 
     trigger.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-        if (!dropdown.hidden) return;
+        if (isDropdownOpen()) return;
         e.preventDefault();
         openPanel();
       }
@@ -1091,6 +1123,7 @@
       close: closePanel,
       destroy: function () {
         closePanel();
+        try { delete root._hvComboClose; } catch (_) { root._hvComboClose = undefined; }
         if (root.parentNode) root.parentNode.removeChild(root);
       }
     };

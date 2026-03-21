@@ -884,15 +884,24 @@
   opacity: 0.9;
 }
 
+/* display:grid sans [hidden] uniquement — sinon display:grid peut annuler le masquage natif du navigateur */
+.hv-search-combo-dropdown:not([hidden]) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.hv-search-combo-dropdown[hidden] {
+  display: none !important;
+}
+
 .hv-search-combo-dropdown {
   position: absolute;
   left: 0;
   right: 0;
   top: calc(100% + 4px);
   z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  max-height: min(55vh, 22rem);
+  max-height: min(60vh, 24rem);
+  min-height: 0;
   background: var(--bg-card, #0f0d1e);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -901,7 +910,7 @@
 }
 
 .hv-search-combo-search-bar {
-  flex-shrink: 0;
+  grid-row: 1;
   padding: 0.5rem;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(63, 202, 255, 0.06) 0%, transparent 100%);
@@ -932,12 +941,37 @@
 }
 
 .hv-search-combo-list {
-  flex: 1;
+  grid-row: 2;
   min-height: 0;
-  overflow-y: auto;
+  max-height: 100%;
   margin: 0;
   padding: 0.25rem 0;
   list-style: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, #3d3758) var(--scrollbar-track, #0c1028);
+}
+
+.hv-search-combo-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.hv-search-combo-list::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, #0c1028);
+  border-radius: 6px;
+}
+
+.hv-search-combo-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #3d3758);
+  border-radius: 6px;
+  border: 2px solid var(--scrollbar-track, #0c1028);
+}
+
+.hv-search-combo-list::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, #524a78);
 }
 
 .hv-search-combo-item {
