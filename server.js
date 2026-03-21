@@ -437,8 +437,8 @@ app.post('/api/brackets', requireAdmin, async (req, res) => {
   if (matchRef) {
     const bo = bracketsModel.normalizeMatchBestOf(matchRef.bestOf);
     const nDemos = (matchRef.demoIds && matchRef.demoIds.length) ? matchRef.demoIds.length : 0;
-    if (bo === 3 && nDemos > 0 && (nDemos < 2 || nDemos > 3)) {
-      return res.status(400).json({ error: 'BO3 : renseigner 2 ou 3 démos (ou aucune pour effacer).' });
+    if (bo === 3 && nDemos > 3) {
+      return res.status(400).json({ error: 'BO3 : au plus 3 démos (1 à 3 pendant le tournoi, ou aucune pour effacer).' });
     }
     if (bo === 1 && nDemos > 1) {
       return res.status(400).json({ error: 'BO1 : une seule démo autorisée.' });

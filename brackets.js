@@ -1023,7 +1023,7 @@
     const el = $('edit-demo-format-desc');
     if (!el) return;
     if (getEditFormMatchBo() === 3) {
-      el.textContent = 'BO3 : indiquez 2 ou 3 démos dans l’ordre des manches. Il faut 2 manches gagnantes pour gagner le match.';
+      el.textContent = 'BO3 : ajoutez 1 à 3 démos au fil des cartes (ordre des manches). Le vainqueur de série est calculé quand une équipe a 2 manches gagnantes.';
     } else {
       el.textContent = 'BO1 : une seule démo.';
     }
@@ -1196,6 +1196,9 @@
       tail = ' Série terminée côté aperçu ; enregistrez pour appliquer le vainqueur calculé en base.';
     } else {
       tail = ' Après enregistrement, le vainqueur du match est défini sur le serveur d’après les vainqueurs des démos en base (objectif ' + need + ').';
+      if (bestOf === 3 && demoIds.length < 3) {
+        tail += ' Vous pouvez enregistrer une seule carte pour l’instant et compléter les manches plus tard.';
+      }
     }
     hintEl.textContent = 'Série (aperçu) : ' + winsA + '–' + winsB + ' sur objectif ' + need + ' (format BO' + bestOf + ').' + tail;
   }
@@ -1214,8 +1217,8 @@
     const slotSelects = document.querySelectorAll('#edit-demo-slots select');
     const demoIds = Array.from(slotSelects).map((s) => (s.value || '').trim()).filter(Boolean);
     if (matchBo === 3) {
-      if (demoIds.length > 0 && (demoIds.length < 2 || demoIds.length > 3)) {
-        alert('BO3 : choisissez 2 ou 3 démos, ou laissez toutes les listes vides pour retirer les liens.');
+      if (demoIds.length > 3) {
+        alert('BO3 : au plus 3 démos, ou laissez toutes les listes vides pour retirer les liens.');
         return;
       }
     } else if (demoIds.length > 1) {
