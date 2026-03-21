@@ -263,9 +263,16 @@ body {
   color: var(--text-muted);
 }
 
+/* Filtre Match : plus large que Bracket / Équipe pour les titres longs */
+.filter-match-wrap {
+  flex: 1 1 22rem;
+  min-width: 0;
+  max-width: min(44rem, 100%);
+}
+
 .filter-match-combo-host {
   width: 100%;
-  max-width: 22rem;
+  max-width: none;
 }
 
 .filter-match-hv-combo .hv-search-combo-trigger {
