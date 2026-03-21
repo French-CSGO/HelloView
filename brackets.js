@@ -10,43 +10,49 @@
   };
 
   let builtPanelIds = '';
-  let upperLinksRedrawRaf = null;
-  let upperLinkResizeObservers = [];
+  let bracketLinksRedrawRaf = null;
+  let bracketLinkResizeObservers = [];
 
-  function teardownUpperBracketLinkObservers() {
-    upperLinkResizeObservers.forEach((o) => o.disconnect());
-    upperLinkResizeObservers = [];
+  function teardownBracketLinkObservers() {
+    bracketLinkResizeObservers.forEach((o) => o.disconnect());
+    bracketLinkResizeObservers = [];
   }
 
   /** Double rAF : layout / polices ; ne dessine que les panneaux élimination visibles. */
-  function scheduleUpperBracketLinksRedraw() {
-    if (upperLinksRedrawRaf != null) cancelAnimationFrame(upperLinksRedrawRaf);
-    upperLinksRedrawRaf = requestAnimationFrame(() => {
-      upperLinksRedrawRaf = requestAnimationFrame(() => {
-        upperLinksRedrawRaf = null;
+  function scheduleBracketLinksRedraw() {
+    if (bracketLinksRedrawRaf != null) cancelAnimationFrame(bracketLinksRedrawRaf);
+    bracketLinksRedrawRaf = requestAnimationFrame(() => {
+      bracketLinksRedrawRaf = requestAnimationFrame(() => {
+        bracketLinksRedrawRaf = null;
         if (!state.data || !state.data.tournaments) return;
         state.data.tournaments.forEach((t) => {
           if (t.type !== 'elimination' || t.drawBracketLinks === false) return;
           const d = safeDomId(t.id);
           const panel = document.getElementById('panel-' + d);
           if (!panel || panel.classList.contains('hidden')) return;
-          const tree = document.getElementById('tree-upper-' + d);
-          if (tree) drawBracketLinks(tree, t, 'upper');
+          const upperTree = document.getElementById('tree-upper-' + d);
+          if (upperTree) drawBracketLinks(upperTree, t, 'upper');
+          const lowerWrap = document.getElementById('lower-wrap-' + d);
+          if (lowerWrap && t.lowerRounds && t.lowerRounds.length) drawBracketLinks(lowerWrap, t, 'lower');
         });
       });
     });
   }
 
-  function setupUpperBracketLinkObservers() {
-    teardownUpperBracketLinkObservers();
+  function setupBracketLinkObservers() {
+    teardownBracketLinkObservers();
     if (typeof ResizeObserver === 'undefined' || !state.data || !state.data.tournaments) return;
     state.data.tournaments.forEach((t) => {
       if (t.type !== 'elimination' || t.drawBracketLinks === false) return;
-      const inner = document.querySelector('#tree-upper-' + safeDomId(t.id) + ' .bracket-tree-inner:not(.bracket-tree-inner-lower)');
-      if (!inner) return;
-      const ro = new ResizeObserver(() => scheduleUpperBracketLinksRedraw());
-      ro.observe(inner);
-      upperLinkResizeObservers.push(ro);
+      const d = safeDomId(t.id);
+      const observeInner = (inner) => {
+        if (!inner) return;
+        const ro = new ResizeObserver(() => scheduleBracketLinksRedraw());
+        ro.observe(inner);
+        bracketLinkResizeObservers.push(ro);
+      };
+      observeInner(document.querySelector('#tree-upper-' + d + ' .bracket-tree-inner:not(.bracket-tree-inner-lower)'));
+      observeInner(document.querySelector('#lower-wrap-' + d + ' .bracket-tree-inner-lower'));
     });
   }
 
@@ -632,7 +638,7 @@
     const tree = treeHost.querySelector('.bracket-tree-inner');
     if (!tree || !tournament) return;
     tree.innerHTML = '';
-    if (lane === 'upper' && tournament.drawBracketLinks !== false) {
+    if (tournament.drawBracketLinks !== false) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', 'bracket-links-svg');
       svg.setAttribute('aria-hidden', 'true');
@@ -685,8 +691,11 @@
   }
 
   function drawBracketLinks(treeHost, tournament, lane) {
-    if (lane !== 'upper' || tournament.drawBracketLinks === false) return;
-    const treeInner = treeHost.querySelector('.bracket-tree-inner:not(.bracket-tree-inner-lower)');
+    if (tournament.drawBracketLinks === false) return;
+    if (lane !== 'upper' && lane !== 'lower') return;
+    const treeInner = lane === 'lower'
+      ? treeHost.querySelector('.bracket-tree-inner-lower')
+      : treeHost.querySelector('.bracket-tree-inner:not(.bracket-tree-inner-lower)');
     if (!treeInner) return;
     const panel = treeHost.closest('.brackets-panel');
     if (panel && panel.classList.contains('hidden')) return;
@@ -694,7 +703,7 @@
     const svg = treeInner.querySelector('.bracket-links-svg');
     if (!svg) return;
 
-    const upper = tournament.upperRounds || [];
+    const rounds = lane === 'lower' ? (tournament.lowerRounds || []).slice(0, 6) : (tournament.upperRounds || []);
     svg.innerHTML = '';
 
     const w = Math.max(1, treeInner.scrollWidth, treeInner.offsetWidth);
@@ -724,13 +733,15 @@
       return cellLocal(el);
     }
 
-    upper.forEach((round, ri) => {
+    const pathClass = lane === 'lower' ? 'bracket-link-path bracket-link-path-lower' : 'bracket-link-path';
+
+    rounds.forEach((round, ri) => {
       (round.matches || []).forEach((m, mi) => {
         const outs = (m.links && m.links.out) || [];
         outs.forEach((ref) => {
-          if (ref.lane !== 'upper') return;
-          const fromRef = tournament.id + ':upper:' + ri + ':' + mi;
-          const toRef = tournament.id + ':upper:' + ref.roundIndex + ':' + ref.matchIndex;
+          if (ref.lane !== lane) return;
+          const fromRef = tournament.id + ':' + lane + ':' + ri + ':' + mi;
+          const toRef = tournament.id + ':' + lane + ':' + ref.roundIndex + ':' + ref.matchIndex;
           const a = cellRect(fromRef);
           const b = cellRect(toRef);
           if (!a || !b) return;
@@ -738,7 +749,7 @@
           const mid = (a.xR + b.xL) / 2;
           const d = 'M ' + a.xR + ' ' + a.yM + ' C ' + mid + ' ' + a.yM + ', ' + mid + ' ' + b.yM + ', ' + b.xL + ' ' + b.yM;
           path.setAttribute('d', d);
-          path.setAttribute('class', 'bracket-link-path');
+          path.setAttribute('class', pathClass);
           path.setAttribute('vector-effect', 'non-scaling-stroke');
           svg.appendChild(path);
         });
@@ -768,7 +779,7 @@
     const tournaments = state.data.tournaments;
     const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',');
     if (sig === builtPanelIds) return;
-    teardownUpperBracketLinkObservers();
+    teardownBracketLinkObservers();
     builtPanelIds = sig;
 
     tabsNav.innerHTML = '';
@@ -853,7 +864,7 @@
     } else if (location.hash !== '#' + tournamentId) {
       location.hash = tournamentId;
     }
-    scheduleUpperBracketLinksRedraw();
+    scheduleBracketLinksRedraw();
   }
 
   function onSwissViewClick(e) {
@@ -911,8 +922,8 @@
       if (t.type === 'swiss') renderSwiss(panel, t);
       else renderEliminationPanel(panel, t);
     });
-    setupUpperBracketLinkObservers();
-    scheduleUpperBracketLinksRedraw();
+    setupBracketLinkObservers();
+    scheduleBracketLinksRedraw();
   }
 
   function getMatchesFromDb() {
@@ -1094,7 +1105,7 @@
   let resizeTimer = null;
   function onResizeRedrawLinks() {
     if (resizeTimer) clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => scheduleUpperBracketLinksRedraw(), 120);
+    resizeTimer = setTimeout(() => scheduleBracketLinksRedraw(), 120);
   }
 
   function applyHashRouting() {
@@ -1136,7 +1147,7 @@
         }
       }
     } finally {
-      scheduleUpperBracketLinksRedraw();
+      scheduleBracketLinksRedraw();
     }
   }
 
@@ -1160,7 +1171,7 @@
 
     applyHashRouting();
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => scheduleUpperBracketLinksRedraw()).catch(() => {});
+      document.fonts.ready.then(() => scheduleBracketLinksRedraw()).catch(() => {});
     }
 
     window.addEventListener('hashchange', () => {

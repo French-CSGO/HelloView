@@ -817,7 +817,8 @@ body.brackets-page .footer {
   position: relative;
 }
 
-.bracket-tree-inner:not(.bracket-tree-inner-lower) > .bracket-links-svg {
+.bracket-tree-inner:not(.bracket-tree-inner-lower) > .bracket-links-svg,
+.bracket-tree-inner.bracket-tree-inner-lower > .bracket-links-svg {
   position: absolute;
   left: 0;
   top: 0;
@@ -829,6 +830,10 @@ body.brackets-page .footer {
   box-sizing: border-box;
 }
 
+.bracket-tree-inner.bracket-tree-inner-lower {
+  position: relative;
+}
+
 .bracket-link-path {
   fill: none;
   stroke: var(--accent);
@@ -836,6 +841,11 @@ body.brackets-page .footer {
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: 0.45;
+}
+
+.bracket-link-path-lower {
+  stroke: var(--orange);
+  opacity: 0.42;
 }
 
 .bracket-panel-elim-wrap {
