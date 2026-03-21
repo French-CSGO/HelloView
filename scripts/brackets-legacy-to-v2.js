@@ -6,6 +6,9 @@
  * Usage :
  *   node scripts/brackets-legacy-to-v2.js /chemin/vers/brackets.json > brackets.v2.json
  *
+ * Pour régénérer data/brackets.json et data/players.json depuis data/import/ :
+ *   node scripts/import-to-data.js
+ *
  * Ne modifie pas les fichiers sources ; redirigez la sortie vers un nouveau fichier
  * puis remplacez sur l’instance de production si besoin.
  */

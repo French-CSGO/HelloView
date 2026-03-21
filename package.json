@@ -5,6 +5,7 @@
   "scripts": {
     "inspect-db": "node scripts/inspect-db.js",
     "reset-brackets": "node scripts/reset-brackets.js",
+    "import:data": "node scripts/import-to-data.js",
     "export-table": "node scripts/inspect-db.js --export",
     "export-db": "node scripts/inspect-db.js --export-all",
     "start": "node server.js",

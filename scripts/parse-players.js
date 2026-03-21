@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Parse players.sql (COPY block) and output JSON for the frontend.
+ * Parse players.sql (COPY block) and output JSON pour le frontend (statsFileVersion).
  * Run: node scripts/parse-players.js < players.sql > data/players.json
  */
 const fs = require('fs');
 const path = require('path');
+const statsFileModel = require('../lib/stats-file-model');
 
 const sqlPath = path.join(__dirname, '..', 'players.sql');
 const outPath = path.join(__dirname, '..', 'data', 'players.json');
@@ -61,6 +62,8 @@ for (const line of lines) {
 const matchIds = [...new Set(players.map(p => p.match_checksum))];
 const matches = matchIds.map((checksum, i) => ({ id: checksum, label: `Match ${i + 1}` }));
 
+const payload = statsFileModel.normalizeStatsPayload({ players, matches });
+
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
-fs.writeFileSync(outPath, JSON.stringify({ players, matches }, null, 2), 'utf8');
-console.error('Wrote', players.length, 'players to', outPath);
+fs.writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8');
+console.error('Wrote', players.length, 'players to', outPath, '(statsFileVersion', payload.statsFileVersion + ')');
