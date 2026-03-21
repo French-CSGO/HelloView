@@ -606,6 +606,13 @@ body {
   flex-shrink: 0;
 }
 
+.auto-scroll-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
 .auto-scroll-label {
   display: inline-flex;
   align-items: center;
@@ -701,8 +708,7 @@ body {
 
 /* Défilement auto (kiosk) : pas d’accès à la liste / filtre « Matchs » */
 body.autoscroll-active .side-panel-hotzone,
-body.autoscroll-active .side-panel-toggle,
-body.autoscroll-active .filter-match-wrap {
+body.autoscroll-active .side-panel-toggle {
   display: none !important;
 }
 

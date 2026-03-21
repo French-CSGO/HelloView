@@ -110,12 +110,19 @@
 
   <footer class="footer">
     <div id="footer-common" class="footer-left"></div>
-    <div class="auto-scroll-control" aria-label="Défilement automatique des tableaux" title="Pour activer le défilement auto par défaut au chargement, ajoutez ?autoScroll=1 à l’URL (ex. signet avec cette URL).">
-      <label class="auto-scroll-label">
-        <input type="checkbox" id="auto-scroll-toggle" class="auto-scroll-checkbox" aria-checked="false" aria-label="Activer le défilement automatique">
-        <span class="auto-scroll-slider"></span>
-        <span class="auto-scroll-text">Défilement auto</span>
-      </label>
+    <div class="auto-scroll-control" aria-label="Défilement automatique des tableaux" title="Signets : ?autoScrollPlayers=1, ?autoScrollTeams=1, ou ?autoScroll=1 pour les deux (ancien format).">
+      <div class="auto-scroll-controls">
+        <label class="auto-scroll-label">
+          <input type="checkbox" id="auto-scroll-players-toggle" class="auto-scroll-checkbox" aria-checked="false" aria-label="Défilement auto — top joueurs">
+          <span class="auto-scroll-slider"></span>
+          <span class="auto-scroll-text">Défilement joueurs</span>
+        </label>
+        <label class="auto-scroll-label">
+          <input type="checkbox" id="auto-scroll-teams-toggle" class="auto-scroll-checkbox" aria-checked="false" aria-label="Défilement auto — top équipes">
+          <span class="auto-scroll-slider"></span>
+          <span class="auto-scroll-text">Défilement équipes</span>
+        </label>
+      </div>
     </div>
   </footer>
 

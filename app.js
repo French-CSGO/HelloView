@@ -103,33 +103,75 @@
     return state.matchIdsByBracket[state.bracketSection] || null;
   }
 
-  const FILTER_PARAMS = { bracket: 'bracket', match: 'match', team: 'team', autoScroll: 'autoScroll' };
+  const FILTER_PARAMS = {
+    bracket: 'bracket',
+    match: 'match',
+    team: 'team',
+    autoScroll: 'autoScroll',
+    autoScrollPlayers: 'autoScrollPlayers',
+    autoScrollTeams: 'autoScrollTeams'
+  };
   const AUTOSCROLL_COOKIE = 'helloview_autoscroll';
+  const AUTOSCROLL_PLAYERS_COOKIE = 'helloview_autoscroll_players';
+  const AUTOSCROLL_TEAMS_COOKIE = 'helloview_autoscroll_teams';
 
-  function readAutoScrollEnabled() {
-    const urlAuto = new URLSearchParams(window.location.search).get(FILTER_PARAMS.autoScroll);
-    if (urlAuto === '1') return true;
-    if (urlAuto === '0') return false;
+  function getCookieValue(name) {
     try {
-      const m = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(AUTOSCROLL_COOKIE) + '=([^;]*)'));
-      const c = m ? decodeURIComponent(m[1]) : null;
-      return c === '1';
+      const m = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(name) + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : null;
     } catch (_) {
-      return false;
+      return null;
     }
+  }
+
+  /** Ancien paramètre URL : force les deux on/off. */
+  function readLegacyAutoScrollUrlMode() {
+    const u = new URLSearchParams(window.location.search).get(FILTER_PARAMS.autoScroll);
+    if (u === '1') return 'both-on';
+    if (u === '0') return 'both-off';
+    return null;
+  }
+
+  function readAutoScrollPlayersEnabled() {
+    const legacy = readLegacyAutoScrollUrlMode();
+    if (legacy === 'both-on') return true;
+    if (legacy === 'both-off') return false;
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get(FILTER_PARAMS.autoScrollPlayers);
+    if (v === '1') return true;
+    if (v === '0') return false;
+    const cp = getCookieValue(AUTOSCROLL_PLAYERS_COOKIE);
+    if (cp === '1') return true;
+    if (cp === '0') return false;
+    if (getCookieValue(AUTOSCROLL_COOKIE) === '1') return true;
+    return false;
+  }
+
+  function readAutoScrollTeamsEnabled() {
+    const legacy = readLegacyAutoScrollUrlMode();
+    if (legacy === 'both-on') return true;
+    if (legacy === 'both-off') return false;
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get(FILTER_PARAMS.autoScrollTeams);
+    if (v === '1') return true;
+    if (v === '0') return false;
+    const ct = getCookieValue(AUTOSCROLL_TEAMS_COOKIE);
+    if (ct === '1') return true;
+    if (ct === '0') return false;
+    if (getCookieValue(AUTOSCROLL_COOKIE) === '1') return true;
+    return false;
+  }
+
+  function readAnyAutoScrollEnabled() {
+    return readAutoScrollPlayersEnabled() || readAutoScrollTeamsEnabled();
   }
 
   function applyFiltersFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const bracket = params.get(FILTER_PARAMS.bracket);
     if (bracket && bracket.trim()) state.bracketSection = bracket.trim();
-    const autoscrollOn = readAutoScrollEnabled();
-    if (!autoscrollOn) {
-      const match = params.get(FILTER_PARAMS.match);
-      if (match && match.trim()) state.matchId = match.trim();
-    } else {
-      state.matchId = '';
-    }
+    const match = params.get(FILTER_PARAMS.match);
+    if (match && match.trim()) state.matchId = match.trim();
     const team = params.get(FILTER_PARAMS.team);
     if (team) state.teamName = decodeURIComponent(team);
   }
@@ -139,8 +181,10 @@
     if (state.bracketSection) params.set(FILTER_PARAMS.bracket, state.bracketSection);
     if (state.matchId) params.set(FILTER_PARAMS.match, state.matchId);
     if (state.teamName) params.set(FILTER_PARAMS.team, encodeURIComponent(state.teamName));
-    const toggleEl = $('auto-scroll-toggle');
-    if (toggleEl && toggleEl.checked) params.set(FILTER_PARAMS.autoScroll, '1');
+    const pT = $('auto-scroll-players-toggle');
+    const tT = $('auto-scroll-teams-toggle');
+    if (pT && pT.checked) params.set(FILTER_PARAMS.autoScrollPlayers, '1');
+    if (tT && tT.checked) params.set(FILTER_PARAMS.autoScrollTeams, '1');
     const qs = params.toString();
     const url = qs ? window.location.pathname + '?' + qs : window.location.pathname;
     history.replaceState(null, '', url);
@@ -281,13 +325,9 @@
         if (state.filtersInited) populateBracketFilterSelect();
         state.lastUpdated = new Date();
         applyFiltersFromUrl();
-        const autoscrollOn = readAutoScrollEnabled();
+        const autoscrollOn = readAnyAutoScrollEnabled();
         document.body.classList.toggle('autoscroll-active', autoscrollOn);
-        if (autoscrollOn) {
-          closeSidePanel();
-          const urlP = new URLSearchParams(window.location.search);
-          if (urlP.has(FILTER_PARAMS.match)) syncFiltersToUrl();
-        }
+        if (autoscrollOn) closeSidePanel();
         updateFooterDate();
         if (!state.filtersInited) {
           initFilters();
@@ -738,74 +778,81 @@
     const STEP_MS = 50;
     const COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 
-    function setAutoScrollCookie(enabled) {
-      document.cookie = encodeURIComponent(AUTOSCROLL_COOKIE) + '=' + (enabled ? '1' : '0') + '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax';
+    function setCookie(name, enabled) {
+      document.cookie = encodeURIComponent(name) + '=' + (enabled ? '1' : '0') + '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax';
     }
 
-    const toggleEl = $('auto-scroll-toggle');
-    let autoScrollEnabled = readAutoScrollEnabled();
-    if (toggleEl) {
-      toggleEl.checked = autoScrollEnabled;
-      toggleEl.setAttribute('aria-checked', String(autoScrollEnabled));
-    }
-    document.body.classList.toggle('autoscroll-active', autoScrollEnabled);
-    if (autoScrollEnabled) {
-      state.matchId = '';
-      if (matchSelect) matchSelect.value = '';
-      closeSidePanel();
-    }
+    const playersToggle = $('auto-scroll-players-toggle');
+    const teamsToggle = $('auto-scroll-teams-toggle');
+    let autoScrollPlayersEnabled = readAutoScrollPlayersEnabled();
+    let autoScrollTeamsEnabled = readAutoScrollTeamsEnabled();
 
-    function setupAutoScroll(wrap) {
+    if (playersToggle) {
+      playersToggle.checked = autoScrollPlayersEnabled;
+      playersToggle.setAttribute('aria-checked', String(autoScrollPlayersEnabled));
+    }
+    if (teamsToggle) {
+      teamsToggle.checked = autoScrollTeamsEnabled;
+      teamsToggle.setAttribute('aria-checked', String(autoScrollTeamsEnabled));
+    }
+    const anyOnInit = autoScrollPlayersEnabled || autoScrollTeamsEnabled;
+    document.body.classList.toggle('autoscroll-active', anyOnInit);
+    if (anyOnInit) closeSidePanel();
+
+    function setupAutoScroll(wrap, isEnabled) {
       if (!wrap) return;
-      const state = { direction: 1, paused: false, lastStep: 0, rafId: null };
+      const scrollState = { direction: 1, paused: false, lastStep: 0, rafId: null };
       function step(now) {
-        state.rafId = requestAnimationFrame(step);
-        if (!autoScrollEnabled || state.paused) return;
-        if (!state.lastStep) state.lastStep = now;
-        const elapsed = now - state.lastStep;
+        scrollState.rafId = requestAnimationFrame(step);
+        if (!isEnabled() || scrollState.paused) return;
+        if (!scrollState.lastStep) scrollState.lastStep = now;
+        const elapsed = now - scrollState.lastStep;
         if (elapsed < STEP_MS) return;
-        state.lastStep = now;
+        scrollState.lastStep = now;
         const max = wrap.scrollHeight - wrap.clientHeight;
         if (max <= 0) return;
-        const delta = (elapsed / 1000) * SCROLL_SPEED * state.direction;
+        const delta = (elapsed / 1000) * SCROLL_SPEED * scrollState.direction;
         let next = wrap.scrollTop + delta;
         if (next >= max) {
           next = max;
-          state.direction = -1;
+          scrollState.direction = -1;
         } else if (next <= 0) {
           next = 0;
-          state.direction = 1;
+          scrollState.direction = 1;
         }
         wrap.scrollTop = next;
       }
-      state.rafId = requestAnimationFrame(step);
-      wrap.addEventListener('mouseenter', () => { state.paused = true; });
-      wrap.addEventListener('mouseleave', () => { state.paused = false; });
-      wrap.addEventListener('focusin', () => { state.paused = true; });
-      wrap.addEventListener('focusout', () => { state.paused = false; });
+      scrollState.rafId = requestAnimationFrame(step);
+      wrap.addEventListener('mouseenter', () => { scrollState.paused = true; });
+      wrap.addEventListener('mouseleave', () => { scrollState.paused = false; });
+      wrap.addEventListener('focusin', () => { scrollState.paused = true; });
+      wrap.addEventListener('focusout', () => { scrollState.paused = false; });
     }
-    setupAutoScroll(document.querySelector('#view-players .table-wrap'));
-    setupAutoScroll(document.querySelector('#view-teams .table-wrap'));
+    setupAutoScroll(document.querySelector('#view-players .table-wrap'), () => autoScrollPlayersEnabled);
+    setupAutoScroll(document.querySelector('#view-teams .table-wrap'), () => autoScrollTeamsEnabled);
 
-    if (toggleEl) {
-      toggleEl.addEventListener('change', () => {
-        autoScrollEnabled = toggleEl.checked;
-        toggleEl.setAttribute('aria-checked', String(toggleEl.checked));
-        setAutoScrollCookie(autoScrollEnabled);
-        if (autoScrollEnabled) {
-          state.matchId = '';
-          if (matchSelect) matchSelect.value = '';
-          closeSidePanel();
-        } else {
-          syncFiltersToUrl();
-          applyFiltersFromUrl();
-          if (matchSelect) matchSelect.value = state.matchId || '';
-        }
+    function onAutoScrollTogglesChange() {
+      autoScrollPlayersEnabled = !!(playersToggle && playersToggle.checked);
+      autoScrollTeamsEnabled = !!(teamsToggle && teamsToggle.checked);
+      if (playersToggle) playersToggle.setAttribute('aria-checked', String(autoScrollPlayersEnabled));
+      if (teamsToggle) teamsToggle.setAttribute('aria-checked', String(autoScrollTeamsEnabled));
+      setCookie(AUTOSCROLL_PLAYERS_COOKIE, autoScrollPlayersEnabled);
+      setCookie(AUTOSCROLL_TEAMS_COOKIE, autoScrollTeamsEnabled);
+      const anyOn = autoScrollPlayersEnabled || autoScrollTeamsEnabled;
+      if (anyOn) {
+        closeSidePanel();
+      } else {
         syncFiltersToUrl();
-        document.body.classList.toggle('autoscroll-active', autoScrollEnabled);
-        updateClearFiltersButton();
-        render();
-      });
+        applyFiltersFromUrl();
+        if (matchSelect) matchSelect.value = state.matchId || '';
+      }
+      syncFiltersToUrl();
+      document.body.classList.toggle('autoscroll-active', anyOn);
+      updateClearFiltersButton();
+      render();
     }
+
+    if (playersToggle) playersToggle.addEventListener('change', onAutoScrollTogglesChange);
+    if (teamsToggle) teamsToggle.addEventListener('change', onAutoScrollTogglesChange);
   })();
 })();
