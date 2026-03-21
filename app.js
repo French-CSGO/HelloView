@@ -62,7 +62,12 @@
   function collectDemoIdsFromTournament(t) {
     const set = new Set();
     const addFrom = (matches) => {
-      (matches || []).forEach((m) => { if (m && m.demoId) set.add(m.demoId); });
+      (matches || []).forEach((m) => {
+        if (!m) return;
+        if (Array.isArray(m.demoIds) && m.demoIds.length) {
+          m.demoIds.forEach((id) => { if (id) set.add(id); });
+        } else if (m.demoId) set.add(m.demoId);
+      });
     };
     if (!t) return set;
     if (t.type === 'swiss') {

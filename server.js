@@ -357,13 +357,29 @@ app.post('/api/brackets/auth', (req, res) => {
   res.json({ token });
 });
 
-app.post('/api/brackets', requireAdmin, (req, res) => {
+async function fetchWinnerNamesByChecksum(checksums) {
+  const ids = (checksums || []).filter((c) => c != null && String(c).trim() !== '').map((c) => String(c).trim());
+  if (!ids.length) return new Map();
+  const r = await pool.query(
+    'SELECT checksum, winner_name FROM public.matches WHERE checksum = ANY($1::text[])',
+    [ids]
+  );
+  const map = new Map();
+  (r.rows || []).forEach((row) => {
+    map.set(String(row.checksum), row.winner_name != null ? String(row.winner_name).trim() : '');
+  });
+  return map;
+}
+
+app.post('/api/brackets', requireAdmin, async (req, res) => {
   const body = req.body || {};
-  let tournamentId = String(body.tournamentId || body.section || '').trim();
+  const tournamentIdMeta = String(body.tournamentId || body.section || '').trim();
+
+  let tournamentId = tournamentIdMeta;
   let lane = String(body.lane || '').trim();
   let roundIndex = Number(body.roundIndex);
   let matchIndex = Number(body.matchIndex);
-  const { teamA, teamB, winner, demoId, lowerBracket } = body;
+  const { teamA, teamB, winner, demoId, demoIds, bestOf, lowerBracket } = body;
 
   if (!tournamentId) {
     return res.status(400).json({ error: 'tournamentId ou section requis' });
@@ -393,12 +409,42 @@ app.post('/api/brackets', requireAdmin, (req, res) => {
     return res.status(400).json({ error: 'matchIndex invalide' });
   }
 
-  const upd = bracketsModel.applyMatchUpdate(data.tournaments, tournamentId, lane, roundIndex, matchIndex, {
-    teamA, teamB, winner, demoId
-  });
+  const fields = { teamA, teamB, winner };
+  if (bestOf !== undefined) fields.bestOf = bestOf;
+  if (demoIds !== undefined) {
+    fields.demoIds = demoIds;
+  } else if (demoId !== undefined) {
+    fields.demoId = demoId;
+  }
+
+  const upd = bracketsModel.applyMatchUpdate(data.tournaments, tournamentId, lane, roundIndex, matchIndex, fields);
   if (!upd.ok) {
     return res.status(400).json({ error: upd.error || 'mise à jour impossible' });
   }
+
+  const matchRef = bracketsModel.getMatchRef(tMeta, lane, roundIndex, matchIndex);
+  if (matchRef) {
+    const bo = bracketsModel.normalizeMatchBestOf(matchRef.bestOf);
+    const nDemos = (matchRef.demoIds && matchRef.demoIds.length) ? matchRef.demoIds.length : 0;
+    if (bo === 3 && nDemos > 0 && (nDemos < 2 || nDemos > 3)) {
+      return res.status(400).json({ error: 'BO3 : renseigner 2 ou 3 démos (ou aucune pour effacer).' });
+    }
+    if (bo === 1 && nDemos > 1) {
+      return res.status(400).json({ error: 'BO1 : une seule démo autorisée.' });
+    }
+    try {
+      const ids = (matchRef.demoIds && matchRef.demoIds.length)
+        ? matchRef.demoIds
+        : (matchRef.demoId ? [matchRef.demoId] : []);
+      if (ids.length) {
+        const winMap = await fetchWinnerNamesByChecksum(ids);
+        bracketsModel.applyComputedSeriesWinner(matchRef, winMap);
+      }
+    } catch (e) {
+      console.error('brackets BO winner:', e.message);
+    }
+  }
+
   if (!setBracketsData(data)) return res.status(500).json({ error: 'Erreur écriture' });
   res.json({ ok: true, brackets: data });
 });

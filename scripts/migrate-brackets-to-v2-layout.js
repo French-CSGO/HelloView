@@ -14,12 +14,18 @@ const raw = fs.readFileSync(bracketsPath, 'utf8');
 const parsed = bracketsModel.parseBracketsFileContent(raw);
 
 function matchPayload(m) {
-  return {
+  const ids = Array.isArray(m.demoIds) && m.demoIds.length
+    ? m.demoIds.map((x) => (x != null ? String(x).trim() : '')).filter(Boolean)
+    : (m.demoId != null && String(m.demoId).trim() !== '' ? [String(m.demoId).trim()] : []);
+  const out = {
     teamA: m.teamA != null ? m.teamA : '',
     teamB: m.teamB != null ? m.teamB : '',
     winner: m.winner != null ? m.winner : null,
-    demoId: m.demoId != null ? m.demoId : null
+    bestOf: m.bestOf === 3 ? 3 : 1,
+    demoId: ids[0] || null
   };
+  if (ids.length) out.demoIds = ids;
+  return out;
 }
 
 const tournaments = (parsed.tournaments || []).map((t) => {

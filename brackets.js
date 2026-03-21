@@ -187,9 +187,9 @@
       m = t.upperRounds && t.upperRounds[roundIndex] && t.upperRounds[roundIndex].matches[matchIndex];
     }
     if (!m) return;
-    const demoId = (m.demoId || '').trim();
-    if (demoId) {
-      openMatchOverlayFromBrackets(demoId);
+    const demoIds = getMatchDemoIds(m);
+    if (demoIds.length) {
+      openMatchOverlayFromBrackets(demoIds[0]);
       return;
     }
     const minimalData = {
@@ -268,6 +268,45 @@
   const SWISS_SLOTS = 16;
 
   const normName = (s) => (s || '').trim().toLowerCase();
+
+  function getMatchBestOf(m) {
+    return Number(m && m.bestOf) === 3 ? 3 : 1;
+  }
+
+  function getMatchDemoIds(m) {
+    if (!m) return [];
+    if (Array.isArray(m.demoIds) && m.demoIds.length) {
+      return m.demoIds.map((x) => String(x || '').trim()).filter(Boolean);
+    }
+    if (m.demoId != null && String(m.demoId).trim() !== '') return [String(m.demoId).trim()];
+    return [];
+  }
+
+  /** Aperçu score de série (client) pour affichage ; le vainqueur officiel vient du serveur après save. */
+  function countSeriesMaps(teamA, teamB, demoIds, matchesFromDb) {
+    const na = normName(teamA);
+    const nb = normName(teamB);
+    let winsA = 0;
+    let winsB = 0;
+    (demoIds || []).forEach((id) => {
+      const row = (matchesFromDb || []).find((x) => x.id === id);
+      if (!row || !row.winner_name) return;
+      const nw = normName(row.winner_name);
+      if (nw && na && nw === na) winsA++;
+      else if (nw && nb && nw === nb) winsB++;
+    });
+    return { winsA, winsB };
+  }
+
+  function formatSeriesScoreShort(m) {
+    const bo = getMatchBestOf(m);
+    if (bo <= 1) return '';
+    const ids = getMatchDemoIds(m);
+    if (!ids.length) return '';
+    const { winsA, winsB } = countSeriesMaps(m.teamA, m.teamB, ids, getMatchesFromDb());
+    if (winsA === 0 && winsB === 0) return '';
+    return winsA + '–' + winsB;
+  }
 
   function safeDomId(id) {
     return String(id || 't').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -446,9 +485,11 @@
           const [winner, loser] = getWinnerLoser(m);
           const row = document.createElement('div');
           row.className = 'swiss-flux-match-row';
+          const ser = formatSeriesScoreShort(m);
+          const mid = ser || (m.winner ? '✓' : '–');
           row.innerHTML =
             '<span class="swiss-flux-team">' + escapeHtml(winner) + '</span>' +
-            '<span class="swiss-flux-score">' + (m.winner ? '1-0' : '–') + '</span>' +
+            '<span class="swiss-flux-score">' + escapeHtml(mid) + '</span>' +
             '<span class="swiss-flux-team">' + escapeHtml(loser) + '</span>';
           if (state.isAdmin) {
             row.classList.add('admin');
@@ -533,9 +574,11 @@
             cell.dataset.lane = 'swiss';
             cell.dataset.roundIndex = String(ri);
             cell.dataset.matchIndex = String(slot);
+            const serS = formatSeriesScoreShort(m);
             cell.innerHTML =
               '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
-              '<span class="match-loser">' + escapeHtml(loser) + '</span>';
+              '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
+              (serS ? '<span class="bracket-match-series">' + escapeHtml(serS) + '</span>' : '');
             if (state.isAdmin) {
               cell.addEventListener('click', () => openEditModal(tournament.id, 'swiss', ri, slot));
             } else {
@@ -618,9 +661,11 @@
         cell.dataset.roundIndex = String(ri);
         cell.dataset.matchIndex = String(mi);
         cell.dataset.bracketRef = tournament.id + ':' + lane + ':' + ri + ':' + mi;
+        const serE = formatSeriesScoreShort(m);
         cell.innerHTML =
           '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
-          '<span class="match-loser">' + escapeHtml(loser) + '</span>';
+          '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
+          (serE ? '<span class="bracket-match-series">' + escapeHtml(serE) + '</span>' : '');
         if (state.isAdmin) {
           cell.addEventListener('click', () => openEditModal(tournament.id, lane, ri, mi));
         } else {
@@ -675,9 +720,11 @@
       cell.dataset.roundIndex = '0';
       cell.dataset.matchIndex = String(mi);
       cell.dataset.bracketRef = tournament.id + ':grand:0:' + mi;
+      const serG = formatSeriesScoreShort(m);
       cell.innerHTML =
         '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
-        '<span class="match-loser">' + escapeHtml(loser) + '</span>';
+        '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
+        (serG ? '<span class="bracket-match-series">' + escapeHtml(serG) + '</span>' : '');
       if (state.isAdmin) {
         cell.addEventListener('click', () => openEditModal(tournament.id, 'grand', 0, mi));
       } else {
@@ -777,7 +824,7 @@
     const panelsRoot = $('brackets-panels');
     if (!tabsNav || !panelsRoot || !state.data || !state.data.tournaments) return;
     const tournaments = state.data.tournaments;
-    const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',');
+    const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',') + ':admin=' + (state.isAdmin ? '1' : '0');
     if (sig === builtPanelIds) return;
     teardownBracketLinkObservers();
     builtPanelIds = sig;
@@ -930,6 +977,79 @@
     return (state.data && state.data.matchesFromDb) || [];
   }
 
+  function getEditFormMatchBo() {
+    const r = document.querySelector('input[name="edit-match-bo"]:checked');
+    return r && String(r.value) === '3' ? 3 : 1;
+  }
+
+  function updateEditDemoFormatDesc() {
+    const el = $('edit-demo-format-desc');
+    if (!el) return;
+    if (getEditFormMatchBo() === 3) {
+      el.textContent = 'BO3 : indiquez 2 ou 3 démos dans l’ordre des manches. Il faut 2 manches gagnantes pour gagner le match.';
+    } else {
+      el.textContent = 'BO1 : une seule démo.';
+    }
+  }
+
+  function renderEditDemoSlots(matchBo, idsPrefill) {
+    const matchesFromDb = getMatchesFromDb();
+    const slotsHost = $('edit-demo-slots');
+    if (!slotsHost) return;
+    slotsHost.innerHTML = '';
+    const count = matchBo === 3 ? 3 : 1;
+    const ids = idsPrefill || [];
+    for (let i = 0; i < count; i++) {
+      const wrap = document.createElement('div');
+      wrap.className = 'edit-demo-slot';
+      const lab = document.createElement('span');
+      lab.className = 'edit-demo-slot-label';
+      lab.textContent = matchBo === 3 ? ('Manche ' + (i + 1)) : 'Démo';
+      const sel = document.createElement('select');
+      sel.className = 'modal-select edit-demo-slot-select';
+      sel.setAttribute('aria-label', matchBo === 3 ? ('Démo manche ' + (i + 1)) : 'Démo du match');
+      sel.innerHTML = '<option value="">— Aucune —</option>';
+      matchesFromDb.forEach((match) => {
+        const opt = document.createElement('option');
+        opt.value = match.id;
+        const nameA = (match.team_a_name || '').trim() || '—';
+        const nameB = (match.team_b_name || '').trim() || '—';
+        const parts = [];
+        if (match.label && match.label !== match.id) parts.push(match.label);
+        parts.push(nameA + ' vs ' + nameB);
+        if (match.map_name) parts.push(match.map_name);
+        opt.textContent = parts.join(' · ');
+        opt.dataset.winnerName = match.winner_name || '';
+        opt.dataset.teamAName = match.team_a_name || '';
+        opt.dataset.teamBName = match.team_b_name || '';
+        sel.appendChild(opt);
+      });
+      const pick = (ids[i] || '').trim();
+      sel.value = (pick && matchesFromDb.some((x) => x.id === pick)) ? pick : '';
+      sel.addEventListener('change', onEditDemoSlotChange);
+      wrap.appendChild(lab);
+      wrap.appendChild(sel);
+      slotsHost.appendChild(wrap);
+    }
+  }
+
+  function onEditMatchBoChange() {
+    const selects = document.querySelectorAll('#edit-demo-slots select');
+    const collected = Array.from(selects).map((s) => (s.value || '').trim());
+    let nextPrefill;
+    if (getEditFormMatchBo() === 3) {
+      nextPrefill = [collected[0] || '', collected[1] || '', collected[2] || ''];
+    } else {
+      const first = collected.find((x) => x);
+      nextPrefill = [first || ''];
+    }
+    updateEditDemoFormatDesc();
+    renderEditDemoSlots(getEditFormMatchBo(), nextPrefill);
+    syncTeamsFromFirstDemoSlot();
+    updateEditSeriesHint();
+    $('edit-demoId').value = nextPrefill.find((x) => x) || '';
+  }
+
   function openEditModal(tournamentId, lane, roundIndex, matchIndex) {
     const t = getTournamentById(tournamentId);
     if (!t) return;
@@ -954,60 +1074,81 @@
     hintEl.classList.add('hidden');
     hintEl.textContent = '';
 
-    const matchesFromDb = getMatchesFromDb();
-    const demoSelect = $('edit-demoSelect');
-    demoSelect.innerHTML = '<option value="">— Aucun —</option>';
-    matchesFromDb.forEach((match) => {
-      const opt = document.createElement('option');
-      opt.value = match.id;
-      const nameA = (match.team_a_name || '').trim() || '—';
-      const nameB = (match.team_b_name || '').trim() || '—';
-      const parts = [];
-      if (match.label && match.label !== match.id) parts.push(match.label);
-      parts.push(nameA + ' vs ' + nameB);
-      if (match.map_name) parts.push(match.map_name);
-      opt.textContent = parts.join(' · ');
-      opt.dataset.winnerName = match.winner_name || '';
-      opt.dataset.teamAName = match.team_a_name || '';
-      opt.dataset.teamBName = match.team_b_name || '';
-      demoSelect.appendChild(opt);
-    });
-    demoSelect.value = (m.demoId && matchesFromDb.some((x) => x.id === m.demoId)) ? m.demoId : '';
+    const matchBo = getMatchBestOf(m);
+    const bo1 = $('edit-match-bo1');
+    const bo3 = $('edit-match-bo3');
+    if (bo1) bo1.checked = matchBo !== 3;
+    if (bo3) bo3.checked = matchBo === 3;
+    updateEditDemoFormatDesc();
+    const rawIds = getMatchDemoIds(m);
+    const prefill = matchBo === 3
+      ? [rawIds[0] || '', rawIds[1] || '', rawIds[2] || '']
+      : [rawIds[0] || ''];
+    renderEditDemoSlots(matchBo, prefill);
+
     $('edit-teamA').value = (m.teamA || '').trim();
     $('edit-teamB').value = (m.teamB || '').trim();
     $('edit-winnerValue').value = (m.winner || '').trim();
-    $('edit-demoId').value = (m.demoId != null ? m.demoId : '');
+    syncTeamsFromFirstDemoSlot();
+    updateEditSeriesHint();
+    $('edit-demoId').value = rawIds[0] || '';
     $('modal-overlay').classList.remove('hidden');
   }
 
-  function onEditDemoSelectChange() {
-    const demoSelect = $('edit-demoSelect');
+  function syncTeamsFromFirstDemoSlot() {
+    const selects = document.querySelectorAll('#edit-demo-slots select');
+    let opt = null;
+    for (let i = 0; i < selects.length; i++) {
+      const sel = selects[i];
+      if (sel.value && sel.selectedOptions[0]) {
+        opt = sel.selectedOptions[0];
+        break;
+      }
+    }
+    if (!opt || !opt.value) return;
+    const nameA = (opt.dataset.teamAName || '').trim();
+    const nameB = (opt.dataset.teamBName || '').trim();
+    if (nameA) $('edit-teamA').value = nameA;
+    if (nameB) $('edit-teamB').value = nameB;
+  }
+
+  function onEditDemoSlotChange() {
+    syncTeamsFromFirstDemoSlot();
+    updateEditSeriesHint();
+    const selects = document.querySelectorAll('#edit-demo-slots select');
+    let first = '';
+    for (let i = 0; i < selects.length; i++) {
+      if (selects[i].value) {
+        first = selects[i].value;
+        break;
+      }
+    }
+    $('edit-demoId').value = first;
+  }
+
+  function updateEditSeriesHint() {
+    const bestOf = getEditFormMatchBo();
+    const need = Math.ceil(bestOf / 2);
+    const teamA = ($('edit-teamA').value || '').trim();
+    const teamB = ($('edit-teamB').value || '').trim();
+    const selects = document.querySelectorAll('#edit-demo-slots select');
+    const demoIds = Array.from(selects).map((s) => (s.value || '').trim()).filter(Boolean);
     const hintEl = $('edit-demo-hint');
-    const id = demoSelect.value;
-    if (!id) {
-      $('edit-demoId').value = '';
-      $('edit-teamA').value = '';
-      $('edit-teamB').value = '';
-      $('edit-winnerValue').value = '';
+    if (!hintEl) return;
+    if (demoIds.length === 0) {
       hintEl.classList.add('hidden');
       return;
     }
-    const opt = demoSelect.selectedOptions[0];
-    if (!opt) return;
-    $('edit-demoId').value = id;
-    const nameA = (opt.dataset.teamAName || '').trim();
-    const nameB = (opt.dataset.teamBName || '').trim();
-    const winnerName = (opt.dataset.winnerName || '').trim();
-    $('edit-teamA').value = nameA;
-    $('edit-teamB').value = nameB;
-    $('edit-winnerValue').value = winnerName || '';
-    if (!winnerName) {
-      hintEl.classList.remove('hidden');
-      hintEl.textContent = 'Ce match n’a pas de vainqueur enregistré en base.';
-      hintEl.className = 'edit-demo-hint hint-muted';
+    const { winsA, winsB } = countSeriesMaps(teamA, teamB, demoIds, getMatchesFromDb());
+    hintEl.classList.remove('hidden');
+    hintEl.className = 'edit-demo-hint hint-muted';
+    let tail = '';
+    if (winsA >= need || winsB >= need) {
+      tail = ' Série terminée côté aperçu ; enregistrez pour appliquer le vainqueur calculé en base.';
     } else {
-      hintEl.classList.add('hidden');
+      tail = ' Après enregistrement, le vainqueur du match est défini sur le serveur d’après les vainqueurs des démos en base (objectif ' + need + ').';
     }
+    hintEl.textContent = 'Série (aperçu) : ' + winsA + '–' + winsB + ' sur objectif ' + need + ' (format BO' + bestOf + ').' + tail;
   }
 
   function closeEditModal() {
@@ -1020,6 +1161,18 @@
     const lane = ($('edit-lane').value || 'upper').trim();
     const roundIndex = parseInt($('edit-roundIndex').value, 10);
     const matchIndex = parseInt($('edit-matchIndex').value, 10);
+    const matchBo = getEditFormMatchBo();
+    const slotSelects = document.querySelectorAll('#edit-demo-slots select');
+    const demoIds = Array.from(slotSelects).map((s) => (s.value || '').trim()).filter(Boolean);
+    if (matchBo === 3) {
+      if (demoIds.length > 0 && (demoIds.length < 2 || demoIds.length > 3)) {
+        alert('BO3 : choisissez 2 ou 3 démos, ou laissez toutes les listes vides pour retirer les liens.');
+        return;
+      }
+    } else if (demoIds.length > 1) {
+      alert('BO1 : une seule démo autorisée.');
+      return;
+    }
     const payload = {
       tournamentId,
       lane,
@@ -1030,7 +1183,9 @@
       teamA: ($('edit-teamA').value || '').trim(),
       teamB: ($('edit-teamB').value || '').trim(),
       winner: ($('edit-winnerValue').value || '').trim() || null,
-      demoId: ($('edit-demoId').value || '').trim() || null
+      bestOf: matchBo,
+      demoIds,
+      demoId: demoIds[0] || null
     };
     try {
       await saveMatch(payload);
@@ -1189,7 +1344,9 @@
     $('modal-form').addEventListener('submit', submitEdit);
     $('modal-cancel').addEventListener('click', closeEditModal);
     $('modal-overlay').addEventListener('click', (e) => { if (e.target === $('modal-overlay')) closeEditModal(); });
-    if ($('edit-demoSelect')) $('edit-demoSelect').addEventListener('change', onEditDemoSelectChange);
+    document.querySelectorAll('input[name="edit-match-bo"]').forEach((r) => {
+      r.addEventListener('change', onEditMatchBoChange);
+    });
 
     const playerOverlay = $('player-overlay');
     if (playerOverlay) {
