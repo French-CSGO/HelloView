@@ -1007,7 +1007,8 @@
       else renderEliminationPanel(panel, t);
     });
     setupBracketLinkObservers();
-    scheduleBracketLinksRedraw();
+    /* Après recréation des onglets (poll, save, mode admin…), rétablir l’onglet depuis le hash au lieu de rester sur le 1er (souvent Swiss). */
+    applyHashRouting();
   }
 
   function getMatchesFromDb() {
