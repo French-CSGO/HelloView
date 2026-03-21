@@ -56,8 +56,9 @@
     });
   }
   const bracketSelect = $('filter-bracket');
-  const matchSelect = $('filter-match');
   const teamSelect = $('filter-team');
+  let filterMatchSelectEl = null;
+  let matchFilterCombo = null;
 
   function collectDemoIdsFromTournament(t) {
     const set = new Set();
@@ -260,22 +261,23 @@
   }
 
   function updateFiltersFromData(newMatchIds) {
-    if (!state.data || !matchSelect || !teamSelect) return;
+    if (!state.data || !filterMatchSelectEl || !matchFilterCombo || !teamSelect) return;
     const { players } = state.data;
     const newSet = new Set(newMatchIds || []);
     const matches = getMatchesForMatchSelect();
 
-    matchSelect.innerHTML = '<option value="">Tous les matchs</option>';
+    filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
     matches.forEach((m) => {
       const opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = getMatchListLabel(m);
       if (newSet.has(m.id)) opt.className = 'match-new';
-      matchSelect.appendChild(opt);
+      filterMatchSelectEl.appendChild(opt);
     });
     const matchIdsInList = new Set(matches.map((m) => m.id));
     if (state.matchId && !matchIdsInList.has(state.matchId)) state.matchId = '';
-    matchSelect.value = state.matchId;
+    filterMatchSelectEl.value = state.matchId;
+    matchFilterCombo.rebuildListFromSelect();
 
     teamSelect.innerHTML = '<option value="">Toutes</option>';
     const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
@@ -305,7 +307,10 @@
   }
 
   function removeNewMatchHighlight() {
-    matchSelect.querySelectorAll('.match-new').forEach(opt => opt.classList.remove('match-new'));
+    if (filterMatchSelectEl) {
+      filterMatchSelectEl.querySelectorAll('.match-new').forEach((opt) => opt.classList.remove('match-new'));
+    }
+    if (matchFilterCombo) matchFilterCombo.rebuildListFromSelect();
     setNewMatchesBadge(false);
   }
 
@@ -387,15 +392,42 @@
 
   function initFilters() {
     populateBracketFilterSelect();
+    const host = $('filter-match-combo-host');
+    if (host && window.HelloView && window.HelloView.createSearchableSelectCombo) {
+      host.innerHTML = '';
+      matchFilterCombo = window.HelloView.createSearchableSelectCombo({
+        appendTo: host,
+        selectId: 'filter-match',
+        emptyValue: '',
+        emptyLabel: 'Tous les matchs',
+        items: [],
+        searchPlaceholder: 'Filtrer les matchs…',
+        comboClass: 'filter-match-hv-combo',
+        ariaLabel: 'Filtrer par match',
+        onChange: function () {
+          state.matchId = filterMatchSelectEl ? filterMatchSelectEl.value : '';
+          syncFiltersToUrl();
+          render();
+        }
+      });
+      filterMatchSelectEl = matchFilterCombo.select;
+    } else {
+      matchFilterCombo = null;
+      filterMatchSelectEl = null;
+    }
+
     const { players } = state.data;
     const matches = getMatchesForMatchSelect();
-    matchSelect.innerHTML = '<option value="">Tous les matchs</option>';
-    matches.forEach((m) => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = getMatchListLabel(m);
-      matchSelect.appendChild(opt);
-    });
+    if (filterMatchSelectEl) {
+      filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
+      matches.forEach((m) => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = getMatchListLabel(m);
+        filterMatchSelectEl.appendChild(opt);
+      });
+      matchFilterCombo.rebuildListFromSelect();
+    }
     teamSelect.innerHTML = '<option value="">Toutes</option>';
     const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
     teams.forEach((t) => {
@@ -404,11 +436,12 @@
       opt.textContent = t;
       teamSelect.appendChild(opt);
     });
-    const matchOpts = Array.from(matchSelect.options).map((o) => o.value);
+    const matchOpts = filterMatchSelectEl ? Array.from(filterMatchSelectEl.options).map((o) => o.value) : [];
     const teamOpts = Array.from(teamSelect.options).map((o) => o.value);
     if (state.matchId && !matchOpts.includes(state.matchId)) state.matchId = '';
     if (state.teamName && !teamOpts.includes(state.teamName)) state.teamName = '';
-    matchSelect.value = state.matchId || '';
+    if (filterMatchSelectEl) filterMatchSelectEl.value = state.matchId || '';
+    if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
     teamSelect.value = state.teamName || '';
     if (bracketSelect) {
       bracketSelect.value = state.bracketSection || '';
@@ -421,7 +454,6 @@
         render();
       });
     }
-    matchSelect.addEventListener('change', () => { state.matchId = matchSelect.value; syncFiltersToUrl(); render(); });
     teamSelect.addEventListener('change', () => { state.teamName = teamSelect.value; syncFiltersToUrl(); render(); });
     const clearBtn = $('btn-clear-filters');
     if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
@@ -844,7 +876,10 @@
       } else {
         syncFiltersToUrl();
         applyFiltersFromUrl();
-        if (matchSelect) matchSelect.value = state.matchId || '';
+        if (filterMatchSelectEl) {
+          filterMatchSelectEl.value = state.matchId || '';
+          if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
+        }
       }
       syncFiltersToUrl();
       document.body.classList.toggle('autoscroll-active', anyOn);

@@ -856,6 +856,246 @@
     if (overlay) overlay.setAttribute('hidden', '');
   }
 
+  /**
+   * Combobox : déclencheur + panneau avec barre de recherche puis liste.
+   * Conserve un <select> masqué (value, options, dataset) pour le reste de l’app.
+   */
+  function createSearchableSelectCombo(config) {
+    const appendTo = config && config.appendTo;
+    if (!appendTo) throw new Error('createSearchableSelectCombo: appendTo requis');
+
+    const emptyValue = config.emptyValue != null ? String(config.emptyValue) : '';
+    const emptyLabel = config.emptyLabel != null ? String(config.emptyLabel) : '—';
+    const rawItems = Array.isArray(config.items) ? config.items : [];
+    const searchPlaceholder = config.searchPlaceholder != null ? String(config.searchPlaceholder) : 'Rechercher…';
+    const comboClass = (config.comboClass || '').trim();
+    const selectClass = (config.selectClass || '').trim();
+    const onChange = typeof config.onChange === 'function' ? config.onChange : null;
+    const ariaLabel = config.ariaLabel != null ? String(config.ariaLabel) : 'Liste déroulante';
+
+    const root = document.createElement('div');
+    root.className = 'hv-search-combo' + (comboClass ? ' ' + comboClass : '');
+
+    const select = document.createElement('select');
+    if (config.selectId) select.id = config.selectId;
+    select.className = ('hv-search-combo-native ' + selectClass).trim();
+    select.setAttribute('aria-hidden', 'true');
+    select.tabIndex = -1;
+
+    const shell = document.createElement('div');
+    shell.className = 'hv-search-combo-shell';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'hv-search-combo-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-label', ariaLabel);
+
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'hv-search-combo-trigger-text';
+
+    const chevron = document.createElement('span');
+    chevron.className = 'hv-search-combo-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+
+    trigger.appendChild(valueSpan);
+    trigger.appendChild(chevron);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'hv-search-combo-dropdown';
+    dropdown.hidden = true;
+
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'hv-search-combo-search-bar';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.className = 'hv-search-combo-search';
+    searchInput.placeholder = searchPlaceholder;
+    searchInput.setAttribute('aria-label', searchPlaceholder);
+    searchInput.autocomplete = 'off';
+
+    const list = document.createElement('ul');
+    list.className = 'hv-search-combo-list';
+    list.setAttribute('role', 'listbox');
+
+    searchWrap.appendChild(searchInput);
+    dropdown.appendChild(searchWrap);
+    dropdown.appendChild(list);
+
+    shell.appendChild(trigger);
+    shell.appendChild(dropdown);
+
+    root.appendChild(select);
+    root.appendChild(shell);
+    appendTo.appendChild(root);
+
+    let docListenerAttached = false;
+
+    function onDocMouseDown(e) {
+      if (!root.isConnected) {
+        if (docListenerAttached) {
+          document.removeEventListener('mousedown', onDocMouseDown, true);
+          docListenerAttached = false;
+        }
+        return;
+      }
+      if (!root.contains(e.target)) closePanel();
+    }
+
+    function attachDoc() {
+      if (docListenerAttached) return;
+      document.addEventListener('mousedown', onDocMouseDown, true);
+      docListenerAttached = true;
+    }
+
+    function detachDoc() {
+      if (!docListenerAttached) return;
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      docListenerAttached = false;
+    }
+
+    function fillSelectFromItemRows(rows) {
+      select.innerHTML = '';
+      (rows || []).forEach((item) => {
+        const opt = document.createElement('option');
+        const v = item.value != null ? String(item.value) : '';
+        opt.value = v;
+        opt.textContent = item.label != null ? String(item.label) : '';
+        if (item.className) opt.className = item.className;
+        if (item.dataset && typeof item.dataset === 'object') {
+          Object.keys(item.dataset).forEach((k) => {
+            if (item.dataset[k] != null) opt.dataset[k] = String(item.dataset[k]);
+          });
+        }
+        select.appendChild(opt);
+      });
+    }
+
+    function updateTriggerText() {
+      const sel = select.selectedOptions[0];
+      valueSpan.textContent = sel ? sel.textContent : emptyLabel;
+    }
+
+    function highlightActive() {
+      const cur = select.value;
+      list.querySelectorAll('.hv-search-combo-item').forEach((li) => {
+        const v = li.getAttribute('data-value') || '';
+        li.classList.toggle('hv-search-combo-item-active', v === cur);
+      });
+    }
+
+    function applyFilter() {
+      const q = (searchInput.value || '').trim().toLowerCase();
+      list.querySelectorAll('.hv-search-combo-item').forEach((li) => {
+        const v = String(li.getAttribute('data-value') || '').toLowerCase();
+        const t = (li.textContent || '').trim().toLowerCase();
+        if (!q) {
+          li.style.display = '';
+          return;
+        }
+        li.style.display = (v.includes(q) || t.includes(q)) ? '' : 'none';
+      });
+    }
+
+    function rebuildListFromSelect() {
+      list.innerHTML = '';
+      for (let i = 0; i < select.options.length; i++) {
+        const o = select.options[i];
+        const li = document.createElement('li');
+        li.className = 'hv-search-combo-item';
+        li.setAttribute('role', 'option');
+        li.setAttribute('data-value', o.value);
+        li.textContent = o.textContent;
+        if (o.className) li.className += ' ' + o.className;
+        const val = o.value;
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); });
+        li.addEventListener('click', () => { pickValue(val); });
+        list.appendChild(li);
+      }
+      updateTriggerText();
+      highlightActive();
+      applyFilter();
+    }
+
+    function pickValue(val) {
+      select.value = val;
+      updateTriggerText();
+      highlightActive();
+      closePanel();
+      if (onChange) onChange();
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function openPanel() {
+      if (!list.children.length && select.options.length) rebuildListFromSelect();
+      dropdown.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      searchInput.value = '';
+      applyFilter();
+      searchInput.focus();
+      attachDoc();
+    }
+
+    function closePanel() {
+      dropdown.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      searchInput.value = '';
+      applyFilter();
+      detachDoc();
+    }
+
+    function syncUIFromSelect() {
+      updateTriggerText();
+      highlightActive();
+    }
+
+    trigger.addEventListener('click', () => {
+      if (!dropdown.hidden) closePanel();
+      else openPanel();
+    });
+
+    trigger.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        if (!dropdown.hidden) return;
+        e.preventDefault();
+        openPanel();
+      }
+    });
+
+    searchInput.addEventListener('input', applyFilter);
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        closePanel();
+        trigger.focus();
+      }
+    });
+
+    const rows = [{ value: emptyValue, label: emptyLabel }].concat(rawItems);
+    fillSelectFromItemRows(rows);
+    if (config.selectedValue != null) {
+      const sv = String(config.selectedValue);
+      if (sv !== '' && [...select.options].some((o) => o.value === sv)) select.value = sv;
+      else select.value = emptyValue;
+    }
+    rebuildListFromSelect();
+
+    return {
+      root: root,
+      select: select,
+      rebuildListFromSelect: rebuildListFromSelect,
+      syncUIFromSelect: syncUIFromSelect,
+      close: closePanel,
+      destroy: function () {
+        closePanel();
+        if (root.parentNode) root.parentNode.removeChild(root);
+      }
+    };
+  }
+
   window.HelloView = window.HelloView || {};
   window.HelloView.openPlayerOverlay = openPlayerOverlay;
   window.HelloView.closePlayerOverlay = closePlayerOverlay;
@@ -865,6 +1105,7 @@
   window.HelloView.closeTeamOverlay = closeTeamOverlay;
   window.HelloView.teamLogoHtml = teamLogoHtml;
   window.HelloView.getPlayerRanking = getPlayerRanking;
+  window.HelloView.createSearchableSelectCombo = createSearchableSelectCombo;
 
   /* Konami code : ↑↑↓↓←→←→ B A → vitre brisée + tremblement page */
   const KONAMI = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];

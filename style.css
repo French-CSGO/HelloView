@@ -263,6 +263,21 @@ body {
   color: var(--text-muted);
 }
 
+.filter-match-combo-host {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.filter-match-hv-combo .hv-search-combo-trigger {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  background: var(--bg-card);
+}
+
+.filter-match-hv-combo .hv-search-combo-dropdown {
+  z-index: 500;
+}
+
 .filters select {
   padding: 0.5rem 2.25rem 0.5rem 0.85rem;
   font-family: var(--font-sans);
@@ -323,7 +338,7 @@ body {
   50% { opacity: 0.85; transform: scale(1.05); }
 }
 
-.filter-match-wrap.has-new select {
+.filter-match-wrap.has-new .hv-search-combo-trigger {
   border-color: var(--green);
   box-shadow: 0 0 0 1px var(--green);
 }

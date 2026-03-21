@@ -1631,7 +1631,7 @@ body.brackets-page .footer {
 
 .edit-demo-slot {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
   flex-wrap: wrap;
 }
@@ -1640,11 +1640,25 @@ body.brackets-page .footer {
   min-width: 5rem;
   font-size: 0.85rem;
   color: var(--text-muted);
+  padding-top: 0.45rem;
+}
+
+.edit-demo-slot-controls {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.modal-form .edit-demo-hv-combo .hv-search-combo-trigger {
+  background: var(--bg);
+}
+
+.modal-form .edit-demo-hv-combo .hv-search-combo-dropdown {
+  z-index: 1100;
 }
 
 .edit-demo-slot .modal-select {
-  flex: 1;
-  min-width: 12rem;
+  width: 100%;
+  margin-bottom: 0;
 }
 
 .bracket-match-series {

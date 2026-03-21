@@ -1033,6 +1033,7 @@
     const matchesFromDb = getMatchesFromDb();
     const slotsHost = $('edit-demo-slots');
     if (!slotsHost) return;
+    if (!window.HelloView || !window.HelloView.createSearchableSelectCombo) return;
     slotsHost.innerHTML = '';
     const count = matchBo === 3 ? 3 : 1;
     const ids = idsPrefill || [];
@@ -1042,30 +1043,41 @@
       const lab = document.createElement('span');
       lab.className = 'edit-demo-slot-label';
       lab.textContent = matchBo === 3 ? ('Manche ' + (i + 1)) : 'Démo';
-      const sel = document.createElement('select');
-      sel.className = 'modal-select edit-demo-slot-select';
-      sel.setAttribute('aria-label', matchBo === 3 ? ('Démo manche ' + (i + 1)) : 'Démo du match');
-      sel.innerHTML = '<option value="">— Aucune —</option>';
-      matchesFromDb.forEach((match) => {
-        const opt = document.createElement('option');
-        opt.value = match.id;
+      const controls = document.createElement('div');
+      controls.className = 'edit-demo-slot-controls';
+      const itemRows = matchesFromDb.map((match) => {
         const nameA = (match.team_a_name || '').trim() || '—';
         const nameB = (match.team_b_name || '').trim() || '—';
         const parts = [];
         if (match.label && match.label !== match.id) parts.push(match.label);
         parts.push(nameA + ' vs ' + nameB);
         if (match.map_name) parts.push(match.map_name);
-        opt.textContent = parts.join(' · ');
-        opt.dataset.winnerName = match.winner_name || '';
-        opt.dataset.teamAName = match.team_a_name || '';
-        opt.dataset.teamBName = match.team_b_name || '';
-        sel.appendChild(opt);
+        return {
+          value: match.id,
+          label: parts.join(' · '),
+          dataset: {
+            winnerName: match.winner_name || '',
+            teamAName: match.team_a_name || '',
+            teamBName: match.team_b_name || ''
+          }
+        };
       });
       const pick = (ids[i] || '').trim();
-      sel.value = (pick && matchesFromDb.some((x) => x.id === pick)) ? pick : '';
-      sel.addEventListener('change', onEditDemoSlotChange);
+      const validPick = (pick && matchesFromDb.some((x) => x.id === pick)) ? pick : '';
+      const combo = window.HelloView.createSearchableSelectCombo({
+        appendTo: controls,
+        emptyValue: '',
+        emptyLabel: '— Aucune —',
+        items: itemRows,
+        selectedValue: validPick,
+        searchPlaceholder: 'Rechercher (équipes, carte, checksum…)',
+        comboClass: 'edit-demo-hv-combo',
+        selectClass: 'modal-select edit-demo-slot-select',
+        ariaLabel: matchBo === 3 ? ('Choisir la démo — manche ' + (i + 1)) : 'Choisir la démo du match',
+        onChange: onEditDemoSlotChange
+      });
       wrap.appendChild(lab);
-      wrap.appendChild(sel);
+      wrap.appendChild(controls);
       slotsHost.appendChild(wrap);
     }
   }
