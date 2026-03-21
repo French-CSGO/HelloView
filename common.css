@@ -208,15 +208,55 @@
 .overlay-match-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 1rem 1.5rem;
   padding: 0.75rem 1.25rem;
   font-size: 0.9rem;
+  line-height: 1.4;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
 
 .overlay-match-meta .overlay-meta-item {
   color: var(--text);
+}
+
+.overlay-demo-dl {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 0.35rem;
+}
+
+.overlay-demo-download-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  max-width: min(100%, 28rem);
+  padding: 0 0.45rem;
+  margin: 0;
+  min-height: 0;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  color: var(--accent, #3fcaff);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  vertical-align: baseline;
+  background: rgba(63, 202, 255, 0.12);
+  border: 1px solid rgba(63, 202, 255, 0.35);
+  border-radius: var(--radius, 8px);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.overlay-demo-download-btn:hover {
+  color: var(--text, #fff);
+  background: rgba(63, 202, 255, 0.2);
+  border-color: var(--accent, #3fcaff);
 }
 
 .overlay-match-meta .overlay-meta-item strong {

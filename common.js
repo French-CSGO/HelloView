@@ -306,6 +306,22 @@
       '<span class="overlay-meta-item"><strong>Durée</strong> ' + durationStr + '</span>' +
       '<span class="overlay-meta-item"><strong>Serveur</strong> ' + serverStr + '</span>';
 
+    if (match && match.demo_download_url) {
+      const dlSpan = document.createElement('span');
+      dlSpan.className = 'overlay-meta-item overlay-demo-dl';
+      const label = document.createElement('strong');
+      label.textContent = 'demo';
+      dlSpan.appendChild(label);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'overlay-demo-download-btn';
+      btn.textContent = match.demo_download_filename || 'demo.dem';
+      const url = match.demo_download_url;
+      btn.addEventListener('click', () => { window.location.assign(url); });
+      dlSpan.appendChild(btn);
+      metaEl.appendChild(dlSpan);
+    }
+
     teamsEl.innerHTML = '';
     teamsEl.appendChild(buildMatchOverlayPlayerTable(winnerTeam, winnerScore, playersWinner, true, data, options));
     teamsEl.appendChild(buildMatchOverlayPlayerTable(loserTeam, loserScore, playersLoser, false, data, options));

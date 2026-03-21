@@ -11,6 +11,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const bracketsModel = require('./lib/brackets-model');
+const demoHostFiles = require('./lib/demo-host-files');
 const multer = require('multer');
 const { Pool } = require('pg');
 
@@ -22,6 +23,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const adminTokens = new Set();
 const adminPanelTokens = new Set();
 const dataDir = path.join(__dirname, 'data');
+const demoHostDir = path.join(dataDir, 'demo');
 const bracketsPath = path.join(dataDir, 'brackets.json');
 const uploadsDir = path.join(__dirname, 'uploads');
 const avatarsDir = path.join(uploadsDir, 'avatars');
@@ -468,7 +470,7 @@ app.get('/api/stats', async (req, res) => {
         ORDER BY match_checksum, "index"
       `),
       pool.query(`
-        SELECT m.checksum, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
+        SELECT m.checksum, m.demo_path, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
                d.duration AS duration_seconds
         FROM public.matches m
         LEFT JOIN public.demos d ON d.checksum = m.checksum
@@ -548,6 +550,7 @@ app.get('/api/stats', async (req, res) => {
     }));
 
     const matchesRows = matchesResult.rows || [];
+    const demoIdx = demoHostFiles.getDemoBasenameIndex(demoHostDir);
     const matches = matchesRows.map((row, i) => {
       const sides = teamsByMatch[row.checksum] || [];
       const teamA = sides[0] || {};
@@ -557,7 +560,7 @@ app.get('/api/stats', async (req, res) => {
       const label = matchName ?? (row.analyze_date
         ? `Match ${i + 1} · ${new Date(row.analyze_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
         : `Match ${i + 1}`);
-      return {
+      const m = {
         id: row.checksum,
         name: matchName,
         label,
@@ -574,6 +577,12 @@ app.get('/api/stats', async (req, res) => {
         team_b_first_half: teamB.score_first_half,
         team_b_second_half: teamB.score_second_half
       };
+      const dl = demoHostFiles.demoDownloadForDbPath(demoIdx, row.demo_path);
+      if (dl) {
+        m.demo_download_url = dl.url;
+        m.demo_download_filename = dl.filename;
+      }
+      return m;
     });
 
     const teamNames = [...new Set(players.map(p => p.team_name))].filter(Boolean);
@@ -629,7 +638,7 @@ app.get('/api/match/:checksum', async (req, res) => {
   try {
     const [matchResult, teamsResult, playersResult, overridesResult] = await Promise.all([
       pool.query(`
-        SELECT m.checksum, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
+        SELECT m.checksum, m.demo_path, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
                d.duration AS duration_seconds
         FROM public.matches m
         LEFT JOIN public.demos d ON d.checksum = m.checksum
@@ -692,6 +701,12 @@ app.get('/api/match/:checksum', async (req, res) => {
       team_b_first_half: teamB.score_first_half,
       team_b_second_half: teamB.score_second_half
     };
+    const demoIdxOne = demoHostFiles.getDemoBasenameIndex(demoHostDir);
+    const dlOne = demoHostFiles.demoDownloadForDbPath(demoIdxOne, matchRow.demo_path);
+    if (dlOne) {
+      match.demo_download_url = dlOne.url;
+      match.demo_download_filename = dlOne.filename;
+    }
 
     const players = (playersResult.rows || []).map((row) => ({
       id: row.id,
@@ -758,6 +773,27 @@ app.get('/api/match/:checksum', async (req, res) => {
     console.error('GET /api/match/:checksum:', err);
     res.status(500).json({ error: 'Erreur base de données', message: err.message });
   }
+});
+
+app.get('/api/demos/download', (req, res) => {
+  const server = (req.query.server != null ? String(req.query.server) : '').trim();
+  const file = (req.query.file != null ? String(req.query.file) : '').trim();
+  if (!demoHostFiles.isSafeDemoFilename(file)) {
+    return res.status(400).json({ error: 'Nom de fichier invalide' });
+  }
+  if (server && !demoHostFiles.isSafeDemoSubdir(server)) {
+    return res.status(400).json({ error: 'Dossier serveur invalide' });
+  }
+  const abs = demoHostFiles.resolveHostedDemoPath(demoHostDir, server, file);
+  if (!abs) return res.status(404).json({ error: 'Démo introuvable' });
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', 'attachment; filename="' + file.replace(/"/g, '') + '"');
+  res.sendFile(abs, (err) => {
+    if (err && !res.headersSent) {
+      console.error('demo download:', err.message);
+      res.status(500).end();
+    }
+  });
 });
 
 app.listen(PORT, () => {
