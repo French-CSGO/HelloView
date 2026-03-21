@@ -2,12 +2,18 @@
   'use strict';
 
   const BRACKETS_STORAGE_KEY = 'brackets_admin_token';
+  const BRACKETS_READ_MODE_KEY = 'brackets_admin_read_mode';
 
   let state = {
     data: null,
     isAdmin: false,
+    adminReadMode: sessionStorage.getItem(BRACKETS_READ_MODE_KEY) === '1',
     token: sessionStorage.getItem(BRACKETS_STORAGE_KEY)
   };
+
+  function canEditBrackets() {
+    return state.isAdmin && !state.adminReadMode;
+  }
 
   let builtPanelIds = '';
   let bracketLinksRedrawRaf = null;
@@ -223,7 +229,9 @@
     if (res.status === 401) {
       state.token = null;
       state.isAdmin = false;
+      state.adminReadMode = false;
       sessionStorage.removeItem(BRACKETS_STORAGE_KEY);
+      sessionStorage.removeItem(BRACKETS_READ_MODE_KEY);
       updateAdminUI();
       throw new Error('Session expirée');
     }
@@ -246,15 +254,32 @@
     const btnAdmin = $('btn-admin');
     const btnLogout = $('btn-logout');
     const header = $('brackets-header');
+    const readWrap = $('admin-read-mode-wrap');
+    const readToggle = $('admin-read-mode-toggle');
+    const readCaption = $('admin-read-mode-caption');
     if (state.isAdmin) {
       btnAdmin.classList.add('hidden');
       btnLogout.classList.remove('hidden');
-      if (header) header.classList.add('is-admin');
+      if (readWrap) readWrap.classList.remove('hidden');
+      if (readCaption) readCaption.textContent = state.adminReadMode ? 'Mode lecture' : 'Mode écriture';
+      if (readToggle) {
+        readToggle.checked = state.adminReadMode;
+        readToggle.setAttribute('aria-checked', state.adminReadMode ? 'true' : 'false');
+      }
+      if (header) {
+        header.classList.toggle('is-admin', !state.adminReadMode);
+        header.classList.toggle('is-admin-read', state.adminReadMode);
+      }
     } else {
       btnAdmin.classList.remove('hidden');
       btnLogout.classList.add('hidden');
-      if (header) header.classList.remove('is-admin');
+      if (readWrap) readWrap.classList.add('hidden');
+      if (header) {
+        header.classList.remove('is-admin');
+        header.classList.remove('is-admin-read');
+      }
     }
+    builtPanelIds = '';
     renderAll();
   }
 
@@ -503,7 +528,7 @@
             '<span class="swiss-flux-team">' + escapeHtml(winner) + '</span>' +
             '<span class="swiss-flux-score">' + escapeHtml(mid) + '</span>' +
             '<span class="swiss-flux-team">' + escapeHtml(loser) + '</span>';
-          if (state.isAdmin) {
+          if (canEditBrackets()) {
             row.classList.add('admin');
             row.addEventListener('click', () => openEditModal(tournament.id, 'swiss', roundIndex, matchIndex));
           } else {
@@ -581,7 +606,7 @@
           if (m) {
             const [winner, loser] = getWinnerLoser(m);
             const cell = document.createElement('div');
-            cell.className = 'match-cell' + (state.isAdmin ? ' admin' : '');
+            cell.className = 'match-cell' + (canEditBrackets() ? ' admin' : '');
             cell.dataset.tournamentId = tournament.id;
             cell.dataset.lane = 'swiss';
             cell.dataset.roundIndex = String(ri);
@@ -591,7 +616,7 @@
               '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
               '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
               (serS ? '<span class="bracket-match-series">' + escapeHtml(serS) + '</span>' : '');
-            if (state.isAdmin) {
+            if (canEditBrackets()) {
               cell.addEventListener('click', () => openEditModal(tournament.id, 'swiss', ri, slot));
             } else {
               cell.classList.add('clickable');
@@ -667,7 +692,7 @@
         const wrap = document.createElement('div');
         wrap.className = 'bracket-match-wrap';
         const cell = document.createElement('div');
-        cell.className = 'bracket-match' + (state.isAdmin ? ' admin' : '');
+        cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '');
         cell.dataset.tournamentId = tournament.id;
         cell.dataset.lane = lane;
         cell.dataset.roundIndex = String(ri);
@@ -678,7 +703,7 @@
           '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
           '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
           (serE ? '<span class="bracket-match-series">' + escapeHtml(serE) + '</span>' : '');
-        if (state.isAdmin) {
+        if (canEditBrackets()) {
           cell.addEventListener('click', () => openEditModal(tournament.id, lane, ri, mi));
         } else {
           cell.classList.add('clickable');
@@ -726,7 +751,7 @@
       const wrap = document.createElement('div');
       wrap.className = 'bracket-match-wrap';
       const cell = document.createElement('div');
-      cell.className = 'bracket-match' + (state.isAdmin ? ' admin' : '');
+      cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '');
       cell.dataset.tournamentId = tournament.id;
       cell.dataset.lane = 'grand';
       cell.dataset.roundIndex = '0';
@@ -737,7 +762,7 @@
         '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
         '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
         (serG ? '<span class="bracket-match-series">' + escapeHtml(serG) + '</span>' : '');
-      if (state.isAdmin) {
+      if (canEditBrackets()) {
         cell.addEventListener('click', () => openEditModal(tournament.id, 'grand', 0, mi));
       } else {
         cell.classList.add('clickable');
@@ -836,7 +861,7 @@
     const panelsRoot = $('brackets-panels');
     if (!tabsNav || !panelsRoot || !state.data || !state.data.tournaments) return;
     const tournaments = state.data.tournaments;
-    const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',') + ':admin=' + (state.isAdmin ? '1' : '0');
+    const sig = tournaments.length + ':' + tournaments.map((t) => t.id).join(',') + ':admin=' + (state.isAdmin ? '1' : '0') + ':edit=' + (canEditBrackets() ? '1' : '0');
     if (sig === builtPanelIds) return;
     teardownBracketLinkObservers();
     builtPanelIds = sig;
@@ -1346,10 +1371,22 @@
     });
 
     $('btn-admin').addEventListener('click', showLoginModal);
+    const readToggleInit = $('admin-read-mode-toggle');
+    if (readToggleInit) {
+      readToggleInit.addEventListener('change', () => {
+        state.adminReadMode = !!readToggleInit.checked;
+        readToggleInit.setAttribute('aria-checked', state.adminReadMode ? 'true' : 'false');
+        if (state.adminReadMode) sessionStorage.setItem(BRACKETS_READ_MODE_KEY, '1');
+        else sessionStorage.removeItem(BRACKETS_READ_MODE_KEY);
+        updateAdminUI();
+      });
+    }
     $('btn-logout').addEventListener('click', () => {
       state.token = null;
       state.isAdmin = false;
+      state.adminReadMode = false;
       sessionStorage.removeItem(BRACKETS_STORAGE_KEY);
+      sessionStorage.removeItem(BRACKETS_READ_MODE_KEY);
       updateAdminUI();
     });
 
