@@ -8,9 +8,9 @@
     data: null,
     bracketsData: null,
     matchIdsByBracket: {},
-    bracketSection: '',
-    matchId: '',
-    teamName: '',
+    filterBrackets: [],
+    filterMatches: [],
+    filterTeams: [],
     playerSearchQuery: '',
     teamSearchQuery: '',
     previousMatchIds: new Set(),
@@ -101,9 +101,21 @@
     return out;
   }
 
-  function getMatchIdsForCurrentBracket() {
-    if (!state.bracketSection) return null;
-    return state.matchIdsByBracket[state.bracketSection] || null;
+  /** Union des demo ids des brackets sélectionnés ; null = aucun filtre bracket (tous les matchs). */
+  function getUnionMatchIdsForSelectedBrackets() {
+    if (!state.filterBrackets.length) return null;
+    const union = new Set();
+    state.filterBrackets.forEach((id) => {
+      const s = state.matchIdsByBracket[id];
+      if (s) s.forEach((x) => union.add(x));
+    });
+    return union;
+  }
+
+  function pruneMatchFiltersToBracketUnion() {
+    const u = getUnionMatchIdsForSelectedBrackets();
+    if (u === null) return;
+    state.filterMatches = state.filterMatches.filter((id) => u.has(id));
   }
 
   const FILTER_PARAMS = {
@@ -171,19 +183,34 @@
 
   function applyFiltersFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    const bracket = params.get(FILTER_PARAMS.bracket);
-    if (bracket && bracket.trim()) state.bracketSection = bracket.trim();
-    const match = params.get(FILTER_PARAMS.match);
-    if (match && match.trim()) state.matchId = match.trim();
-    const team = params.get(FILTER_PARAMS.team);
-    if (team) state.teamName = decodeURIComponent(team);
+    state.filterBrackets = [];
+    const bracketsMulti = params.getAll(FILTER_PARAMS.bracket).map((s) => s.trim()).filter(Boolean);
+    if (bracketsMulti.length) state.filterBrackets = [...new Set(bracketsMulti)];
+    else {
+      const b = params.get(FILTER_PARAMS.bracket);
+      if (b && b.trim()) state.filterBrackets = [b.trim()];
+    }
+    state.filterMatches = [];
+    const matchesMulti = params.getAll(FILTER_PARAMS.match).map((s) => s.trim()).filter(Boolean);
+    if (matchesMulti.length) state.filterMatches = [...new Set(matchesMulti)];
+    else {
+      const m = params.get(FILTER_PARAMS.match);
+      if (m && m.trim()) state.filterMatches = [m.trim()];
+    }
+    state.filterTeams = [];
+    const teamsMulti = params.getAll(FILTER_PARAMS.team).map((s) => String(s).trim()).filter(Boolean);
+    if (teamsMulti.length) state.filterTeams = [...new Set(teamsMulti)];
+    else {
+      const t = params.get(FILTER_PARAMS.team);
+      if (t && t.trim()) state.filterTeams = [t.trim()];
+    }
   }
 
   function syncFiltersToUrl() {
     const params = new URLSearchParams();
-    if (state.bracketSection) params.set(FILTER_PARAMS.bracket, state.bracketSection);
-    if (state.matchId) params.set(FILTER_PARAMS.match, state.matchId);
-    if (state.teamName) params.set(FILTER_PARAMS.team, encodeURIComponent(state.teamName));
+    state.filterBrackets.forEach((id) => params.append(FILTER_PARAMS.bracket, id));
+    state.filterMatches.forEach((id) => params.append(FILTER_PARAMS.match, id));
+    state.filterTeams.forEach((name) => params.append(FILTER_PARAMS.team, name));
     const pT = $('auto-scroll-players-toggle');
     const tT = $('auto-scroll-teams-toggle');
     if (pT && pT.checked) params.set(FILTER_PARAMS.autoScrollPlayers, '1');
@@ -194,15 +221,14 @@
   }
 
   function hasActiveFilters() {
-    return !!(state.bracketSection || state.matchId || state.teamName);
+    return !!(state.filterBrackets.length || state.filterMatches.length || state.filterTeams.length);
   }
 
   function clearAllFilters() {
-    state.bracketSection = '';
-    state.matchId = '';
-    state.teamName = '';
-    if (filterBracketSelectEl) filterBracketSelectEl.value = '';
-    if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
+    state.filterBrackets = [];
+    state.filterMatches = [];
+    state.filterTeams = [];
+    populateBracketFilterSelect();
     updateFiltersFromData([]);
     syncFiltersToUrl();
     render();
@@ -255,7 +281,7 @@
   function getMatchesForMatchSelect() {
     if (!state.data || !state.data.matches) return [];
     let matches = state.data.matches;
-    const bracketSet = getMatchIdsForCurrentBracket();
+    const bracketSet = getUnionMatchIdsForSelectedBrackets();
     if (bracketSet !== null) {
       if (bracketSet.size === 0) return [];
       matches = matches.filter((m) => bracketSet.has(m.id));
@@ -271,30 +297,30 @@
       const newSet = new Set(newMatchIds || []);
       const matches = getMatchesForMatchSelect();
 
-      filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
+      filterMatchSelectEl.innerHTML = '';
       matches.forEach((m) => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = getMatchListLabel(m);
         if (newSet.has(m.id)) opt.className = 'match-new';
+        opt.selected = state.filterMatches.includes(m.id);
         filterMatchSelectEl.appendChild(opt);
       });
       const matchIdsInList = new Set(matches.map((m) => m.id));
-      if (state.matchId && !matchIdsInList.has(state.matchId)) state.matchId = '';
-      filterMatchSelectEl.value = state.matchId;
+      state.filterMatches = state.filterMatches.filter((id) => matchIdsInList.has(id));
       matchFilterCombo.rebuildListFromSelect();
     }
 
     if (filterTeamSelectEl && teamFilterCombo) {
-      filterTeamSelectEl.innerHTML = '<option value="">Toutes les équipes</option>';
+      filterTeamSelectEl.innerHTML = '';
       const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
       teams.forEach((t) => {
         const opt = document.createElement('option');
         opt.value = t;
         opt.textContent = t;
+        opt.selected = state.filterTeams.includes(t);
         filterTeamSelectEl.appendChild(opt);
       });
-      filterTeamSelectEl.value = state.teamName;
       teamFilterCombo.rebuildListFromSelect();
     }
   }
@@ -375,14 +401,14 @@
 
   function populateBracketFilterSelect() {
     if (!filterBracketSelectEl) return;
-    const cur = state.bracketSection || '';
-    filterBracketSelectEl.innerHTML = '<option value="">Tous les brackets</option>';
+    filterBracketSelectEl.innerHTML = '';
     const bd = state.bracketsData;
     if (bd && bd.schemaVersion === 2 && Array.isArray(bd.tournaments)) {
       bd.tournaments.forEach((t) => {
         const opt = document.createElement('option');
         opt.value = t.id;
         opt.textContent = t.title || t.id;
+        opt.selected = state.filterBrackets.includes(t.id);
         filterBracketSelectEl.appendChild(opt);
       });
     } else {
@@ -391,12 +417,12 @@
         const opt = document.createElement('option');
         opt.value = id;
         opt.textContent = labels[id];
+        opt.selected = state.filterBrackets.includes(id);
         filterBracketSelectEl.appendChild(opt);
       });
     }
-    const vals = [...filterBracketSelectEl.options].map((o) => o.value);
-    if (cur && vals.includes(cur)) filterBracketSelectEl.value = cur;
-    else filterBracketSelectEl.value = '';
+    const vals = new Set([...filterBracketSelectEl.options].map((o) => o.value));
+    state.filterBrackets = state.filterBrackets.filter((id) => vals.has(id));
     if (bracketFilterCombo) bracketFilterCombo.rebuildListFromSelect();
   }
 
@@ -415,12 +441,15 @@
         searchPlaceholder: 'Filtrer les brackets…',
         comboClass: 'filter-bracket-hv-combo',
         ariaLabel: 'Filtrer par bracket',
+        multiple: true,
+        multiTriggerManyLabel: '{n} brackets',
         clearable: true,
         clearButtonAriaLabel: 'Effacer le filtre bracket',
         onChange: function () {
-          state.bracketSection = filterBracketSelectEl ? filterBracketSelectEl.value : '';
-          const matchIdsInList = getMatchIdsForCurrentBracket();
-          if (state.matchId && matchIdsInList && !matchIdsInList.has(state.matchId)) state.matchId = '';
+          state.filterBrackets = filterBracketSelectEl
+            ? [...filterBracketSelectEl.selectedOptions].map((o) => o.value)
+            : [];
+          pruneMatchFiltersToBracketUnion();
           updateFiltersFromData([]);
           syncFiltersToUrl();
           render();
@@ -446,10 +475,14 @@
         searchPlaceholder: 'Filtrer les matchs…',
         comboClass: 'filter-match-hv-combo',
         ariaLabel: 'Filtrer par match',
+        multiple: true,
+        multiTriggerManyLabel: '{n} matchs',
         clearable: true,
         clearButtonAriaLabel: 'Effacer le filtre match',
         onChange: function () {
-          state.matchId = filterMatchSelectEl ? filterMatchSelectEl.value : '';
+          state.filterMatches = filterMatchSelectEl
+            ? [...filterMatchSelectEl.selectedOptions].map((o) => o.value)
+            : [];
           syncFiltersToUrl();
           render();
         }
@@ -463,11 +496,12 @@
     const { players } = state.data;
     const matches = getMatchesForMatchSelect();
     if (filterMatchSelectEl) {
-      filterMatchSelectEl.innerHTML = '<option value="">Tous les matchs</option>';
+      filterMatchSelectEl.innerHTML = '';
       matches.forEach((m) => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = getMatchListLabel(m);
+        opt.selected = state.filterMatches.includes(m.id);
         filterMatchSelectEl.appendChild(opt);
       });
       matchFilterCombo.rebuildListFromSelect();
@@ -485,10 +519,14 @@
         searchPlaceholder: 'Filtrer les équipes…',
         comboClass: 'filter-team-hv-combo',
         ariaLabel: 'Filtrer par équipe',
+        multiple: true,
+        multiTriggerManyLabel: '{n} équipes',
         clearable: true,
         clearButtonAriaLabel: 'Effacer le filtre équipe',
         onChange: function () {
-          state.teamName = filterTeamSelectEl ? filterTeamSelectEl.value : '';
+          state.filterTeams = filterTeamSelectEl
+            ? [...filterTeamSelectEl.selectedOptions].map((o) => o.value)
+            : [];
           syncFiltersToUrl();
           render();
         }
@@ -500,26 +538,24 @@
     }
 
     if (filterTeamSelectEl) {
-      filterTeamSelectEl.innerHTML = '<option value="">Toutes les équipes</option>';
+      filterTeamSelectEl.innerHTML = '';
       const teams = [...new Set((players || []).map(p => p.team_name))].filter(Boolean).sort();
       teams.forEach((t) => {
         const opt = document.createElement('option');
         opt.value = t;
         opt.textContent = t;
+        opt.selected = state.filterTeams.includes(t);
         filterTeamSelectEl.appendChild(opt);
       });
       teamFilterCombo.rebuildListFromSelect();
     }
 
-    const matchOpts = filterMatchSelectEl ? Array.from(filterMatchSelectEl.options).map((o) => o.value) : [];
-    const teamOpts = filterTeamSelectEl ? Array.from(filterTeamSelectEl.options).map((o) => o.value) : [];
-    if (state.matchId && !matchOpts.includes(state.matchId)) state.matchId = '';
-    if (state.teamName && !teamOpts.includes(state.teamName)) state.teamName = '';
-    if (filterBracketSelectEl) filterBracketSelectEl.value = state.bracketSection || '';
+    const matchOpts = filterMatchSelectEl ? new Set(Array.from(filterMatchSelectEl.options).map((o) => o.value)) : new Set();
+    const teamOpts = filterTeamSelectEl ? new Set(Array.from(filterTeamSelectEl.options).map((o) => o.value)) : new Set();
+    state.filterMatches = state.filterMatches.filter((id) => matchOpts.has(id));
+    state.filterTeams = state.filterTeams.filter((t) => teamOpts.has(t));
     if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
-    if (filterMatchSelectEl) filterMatchSelectEl.value = state.matchId || '';
     if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
-    if (filterTeamSelectEl) filterTeamSelectEl.value = state.teamName || '';
     if (teamFilterCombo) teamFilterCombo.syncUIFromSelect();
 
     const clearBtn = $('btn-clear-filters');
@@ -529,13 +565,19 @@
   function getFilteredRows() {
     if (!state.data) return [];
     let list = state.data.players.slice();
-    const bracketSet = getMatchIdsForCurrentBracket();
+    const bracketSet = getUnionMatchIdsForSelectedBrackets();
     if (bracketSet !== null) {
       if (bracketSet.size === 0) return [];
       list = list.filter((p) => p.match_checksum && bracketSet.has(p.match_checksum));
     }
-    if (state.matchId) list = list.filter((p) => p.match_checksum === state.matchId);
-    if (state.teamName) list = list.filter((p) => p.team_name === state.teamName);
+    if (state.filterMatches.length) {
+      const ms = new Set(state.filterMatches);
+      list = list.filter((p) => ms.has(p.match_checksum));
+    }
+    if (state.filterTeams.length) {
+      const ts = new Set(state.filterTeams);
+      list = list.filter((p) => ts.has(p.team_name));
+    }
     return list;
   }
 
@@ -620,15 +662,17 @@
 
   function renderTeams() {
     const rows = getFilteredRows();
-    const bracketSet = getMatchIdsForCurrentBracket();
+    const bracketSet = getUnionMatchIdsForSelectedBrackets();
     let ranking;
-    if (bracketSet !== null || state.matchId) {
+    if (bracketSet !== null || state.filterMatches.length) {
       ranking = getTeamRanking(rows);
     } else if (state.data.teams && state.data.teams.length > 0) {
-      ranking = state.teamName
-        ? state.data.teams.filter(t => t.team_name === state.teamName)
-        : state.data.teams.slice();
-      ranking = ranking.sort((a, b) => (b.winsPct ?? 0) - (a.winsPct ?? 0));
+      let base = state.data.teams.slice();
+      if (state.filterTeams.length) {
+        const ts = new Set(state.filterTeams);
+        base = base.filter((t) => ts.has(t.team_name));
+      }
+      ranking = base.sort((a, b) => (b.winsPct ?? 0) - (a.winsPct ?? 0));
     } else {
       ranking = getTeamRanking(rows);
     }
@@ -944,15 +988,21 @@
         syncFiltersToUrl();
         applyFiltersFromUrl();
         if (filterBracketSelectEl) {
-          filterBracketSelectEl.value = state.bracketSection || '';
+          [...filterBracketSelectEl.options].forEach((o) => {
+            o.selected = state.filterBrackets.includes(o.value);
+          });
           if (bracketFilterCombo) bracketFilterCombo.syncUIFromSelect();
         }
         if (filterMatchSelectEl) {
-          filterMatchSelectEl.value = state.matchId || '';
+          [...filterMatchSelectEl.options].forEach((o) => {
+            o.selected = state.filterMatches.includes(o.value);
+          });
           if (matchFilterCombo) matchFilterCombo.syncUIFromSelect();
         }
         if (filterTeamSelectEl) {
-          filterTeamSelectEl.value = state.teamName || '';
+          [...filterTeamSelectEl.options].forEach((o) => {
+            o.selected = state.filterTeams.includes(o.value);
+          });
           if (teamFilterCombo) teamFilterCombo.syncUIFromSelect();
         }
       }

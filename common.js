@@ -874,12 +874,15 @@
     const ariaLabel = config.ariaLabel != null ? String(config.ariaLabel) : 'Liste déroulante';
     const clearable = !!config.clearable;
     const clearButtonAriaLabel = config.clearButtonAriaLabel != null ? String(config.clearButtonAriaLabel) : 'Effacer la sélection';
+    const multiple = !!config.multiple;
+    const multiTriggerManyLabel = config.multiTriggerManyLabel != null ? String(config.multiTriggerManyLabel) : '{n} sélectionnés';
 
     const root = document.createElement('div');
-    root.className = 'hv-search-combo' + (comboClass ? ' ' + comboClass : '') + (clearable ? ' hv-search-combo--clearable' : '');
+    root.className = 'hv-search-combo' + (comboClass ? ' ' + comboClass : '') + (clearable ? ' hv-search-combo--clearable' : '') + (multiple ? ' hv-search-combo--multiple' : '');
 
     const select = document.createElement('select');
     if (config.selectId) select.id = config.selectId;
+    if (multiple) select.multiple = true;
     select.className = ('hv-search-combo-native ' + selectClass).trim();
     select.setAttribute('aria-hidden', 'true');
     select.tabIndex = -1;
@@ -1088,21 +1091,43 @@
     }
 
     function updateTriggerText() {
-      const sel = select.selectedOptions[0];
-      valueSpan.textContent = sel ? sel.textContent : emptyLabel;
-      if (clearBtn) {
-        const has = select.value !== emptyValue;
-        if (has) clearBtn.removeAttribute('hidden');
-        else clearBtn.setAttribute('hidden', '');
+      if (multiple) {
+        const sel = [...select.options].filter((o) => o.selected);
+        if (sel.length === 0) valueSpan.textContent = emptyLabel;
+        else if (sel.length === 1) valueSpan.textContent = sel[0].textContent;
+        else valueSpan.textContent = multiTriggerManyLabel.replace(/\{n\}/g, String(sel.length));
+        if (clearBtn) {
+          const has = sel.length > 0;
+          if (has) clearBtn.removeAttribute('hidden');
+          else clearBtn.setAttribute('hidden', '');
+        }
+      } else {
+        const sel0 = select.selectedOptions[0];
+        valueSpan.textContent = sel0 ? sel0.textContent : emptyLabel;
+        if (clearBtn) {
+          const has = select.value !== emptyValue;
+          if (has) clearBtn.removeAttribute('hidden');
+          else clearBtn.setAttribute('hidden', '');
+        }
       }
     }
 
     function highlightActive() {
-      const cur = select.value;
-      list.querySelectorAll('.hv-search-combo-item').forEach((li) => {
-        const v = li.getAttribute('data-value') || '';
-        li.classList.toggle('hv-search-combo-item-active', v === cur);
-      });
+      if (multiple) {
+        list.querySelectorAll('.hv-search-combo-item').forEach((li) => {
+          const v = li.getAttribute('data-value') || '';
+          const opt = [...select.options].find((o) => o.value === v);
+          const on = !!(opt && opt.selected);
+          li.classList.toggle('hv-search-combo-item-active', on);
+          li.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      } else {
+        const cur = select.value;
+        list.querySelectorAll('.hv-search-combo-item').forEach((li) => {
+          const v = li.getAttribute('data-value') || '';
+          li.classList.toggle('hv-search-combo-item-active', v === cur);
+        });
+      }
     }
 
     function applyFilter() {
@@ -1120,17 +1145,25 @@
 
     function rebuildListFromSelect() {
       list.innerHTML = '';
+      list.setAttribute('aria-multiselectable', multiple ? 'true' : 'false');
       for (let i = 0; i < select.options.length; i++) {
         const o = select.options[i];
         const li = document.createElement('li');
-        li.className = 'hv-search-combo-item';
+        li.className = 'hv-search-combo-item' + (multiple ? ' hv-search-combo-item--multi' : '');
         li.setAttribute('role', 'option');
         li.setAttribute('data-value', o.value);
         li.textContent = o.textContent;
         if (o.className) li.className += ' ' + o.className;
         const val = o.value;
         li.addEventListener('mousedown', (e) => { e.preventDefault(); });
-        li.addEventListener('click', () => { pickValue(val); });
+        if (multiple) {
+          li.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMultiValue(val);
+          });
+        } else {
+          li.addEventListener('click', () => { pickValue(val); });
+        }
         list.appendChild(li);
       }
       updateTriggerText();
@@ -1138,7 +1171,19 @@
       applyFilter();
     }
 
+    function toggleMultiValue(val) {
+      const opt = [...select.options].find((o) => o.value === val);
+      if (!opt) return;
+      opt.selected = !opt.selected;
+      updateTriggerText();
+      highlightActive();
+      applyFilter();
+      if (onChange) onChange();
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
     function pickValue(val) {
+      if (multiple) return;
       select.value = val;
       updateTriggerText();
       highlightActive();
@@ -1188,8 +1233,18 @@
       clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        if (select.value === emptyValue) return;
-        pickValue(emptyValue);
+        if (multiple) {
+          if (![...select.options].some((o) => o.selected)) return;
+          [...select.options].forEach((o) => { o.selected = false; });
+          updateTriggerText();
+          highlightActive();
+          applyFilter();
+          if (onChange) onChange();
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          if (select.value === emptyValue) return;
+          pickValue(emptyValue);
+        }
       });
       clearBtn.addEventListener('mousedown', (e) => e.stopPropagation());
     }
@@ -1220,12 +1275,19 @@
       }
     });
 
-    const rows = [{ value: emptyValue, label: emptyLabel }].concat(rawItems);
-    fillSelectFromItemRows(rows);
-    if (config.selectedValue != null) {
-      const sv = String(config.selectedValue);
-      if (sv !== '' && [...select.options].some((o) => o.value === sv)) select.value = sv;
-      else select.value = emptyValue;
+    if (multiple) {
+      fillSelectFromItemRows(rawItems);
+      const svs = Array.isArray(config.selectedValues) ? config.selectedValues.map(String) : [];
+      const set = new Set(svs);
+      [...select.options].forEach((o) => { o.selected = set.has(o.value); });
+    } else {
+      const rows = [{ value: emptyValue, label: emptyLabel }].concat(rawItems);
+      fillSelectFromItemRows(rows);
+      if (config.selectedValue != null) {
+        const sv = String(config.selectedValue);
+        if (sv !== '' && [...select.options].some((o) => o.value === sv)) select.value = sv;
+        else select.value = emptyValue;
+      }
     }
     rebuildListFromSelect();
 
