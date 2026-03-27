@@ -579,7 +579,12 @@ body.brackets-page .footer {
 
 .groups-wins   { color: var(--green, #4caf50) !important; font-weight: 700; }
 .groups-losses { color: var(--red,   #f44336) !important; }
-.groups-draws  { color: var(--muted) !important; }
+.groups-draws  { color: var(--text-muted) !important; }
+.groups-rw     { color: var(--text-muted) !important; }
+.groups-rl     { color: var(--text-muted) !important; }
+.groups-rd     { color: var(--text-muted) !important; font-weight: 600; }
+.groups-rd-pos { color: var(--green, #4caf50) !important; }
+.groups-rd-neg { color: var(--red,   #f44336) !important; }
 
 /* Rounds grid */
 .groups-rounds-wrap { }

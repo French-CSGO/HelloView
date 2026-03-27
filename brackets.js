@@ -580,13 +580,17 @@
         const a = (m.teamA || '').trim();
         const b = (m.teamB || '').trim();
         const w = (m.winner || '').trim();
-        if (a && !rec[a]) rec[a] = { w: 0, l: 0, e: 0 };
-        if (b && !rec[b]) rec[b] = { w: 0, l: 0, e: 0 };
+        if (a && !rec[a]) rec[a] = { w: 0, l: 0, e: 0, rw: 0, rl: 0 };
+        if (b && !rec[b]) rec[b] = { w: 0, l: 0, e: 0, rw: 0, rl: 0 };
         if (!a || !b) return;
         const ids = getMatchDemoIds(m);
         const dbRow = ids.length ? (getMatchesFromDb() || []).find((x) => x.id === ids[0]) : null;
         const sa = dbRow ? dbRow.team_a_score : null;
         const sb = dbRow ? dbRow.team_b_score : null;
+        if (sa != null && sb != null) {
+          rec[a].rw += sa; rec[a].rl += sb;
+          rec[b].rw += sb; rec[b].rl += sa;
+        }
         const winner = w || (sa != null && sb != null ? (sa > sb ? a : sb > sa ? b : '') : '');
         if (!winner) {
           if (ids.length && sa != null && sb != null && sa === sb) { rec[a].e++; rec[b].e++; }
@@ -626,16 +630,23 @@
         '<th title="Wins">W</th>' +
         '<th title="Draws">D</th>' +
         '<th title="Losses">L</th>' +
+        '<th title="Rounds Won">RW</th>' +
+        '<th title="Rounds Lost">RL</th>' +
+        '<th title="Round Difference">RD</th>' +
         '</tr></thead>';
       const tbody = document.createElement('tbody');
       teams.forEach(([name, s], i) => {
         const tr = document.createElement('tr');
+        const rd = s.rw - s.rl;
         tr.innerHTML =
           '<td class="groups-rank">' + (i + 1) + '</td>' +
           '<td class="groups-team-col">' + escapeHtml(name) + '</td>' +
           '<td class="groups-wins">' + s.w + '</td>' +
           '<td class="groups-draws">' + s.e + '</td>' +
-          '<td class="groups-losses">' + s.l + '</td>';
+          '<td class="groups-losses">' + s.l + '</td>' +
+          '<td class="groups-rw">' + s.rw + '</td>' +
+          '<td class="groups-rl">' + s.rl + '</td>' +
+          '<td class="groups-rd' + (rd > 0 ? ' groups-rd-pos' : rd < 0 ? ' groups-rd-neg' : '') + '">' + (rd > 0 ? '+' : '') + rd + '</td>';
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
