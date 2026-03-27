@@ -1,0 +1,45 @@
+services:
+  helloview:
+    image: ghcr.io/french-csgo/helloview:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-get5}
+      MYSQL_USER: ${MYSQL_USER:-get5}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SEASON_ID: ${SEASON_ID:-}
+      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      BRACKETS_ADMIN_PASSWORD: ${BRACKETS_ADMIN_PASSWORD:-}
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    networks:
+      - web
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+    depends_on:
+      - helloview
+
+networks:
+  web:
+
+volumes:
+  caddy_data:
+  caddy_config:

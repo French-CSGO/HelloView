@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.log
+data/
+uploads/
+inspect-result.txt
+db-export.json
+.github/
+docs/

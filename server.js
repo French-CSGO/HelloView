@@ -1,6 +1,7 @@
 /**
  * Serveur API + fichiers statiques pour HelloView.
- * Lit la config PostgreSQL depuis .env (PGSQL_HOST, PGSQL_PORT, PGSQL_DATABASE, PGSQL_USER, PGSQL_PASSWORD).
+ * Lit la config MySQL depuis .env (MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD).
+ * Optionnel : SEASON_ID pour filtrer par saison G5API.
  * GET /api/stats → { players, matches, teams } depuis la base csdemo.
  * Optionnel : STEAM_API_KEY pour enrichir les joueurs avec avatar_url (avatars Valve).
  */
@@ -13,7 +14,7 @@ const express = require('express');
 const bracketsModel = require('./lib/brackets-model');
 const demoHostFiles = require('./lib/demo-host-files');
 const multer = require('multer');
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -186,12 +187,24 @@ async function fetchSteamAvatars(steamIds) {
   return Object.fromEntries(steamIds.map((id) => [id, avatarCache.get(id) || map[id] || null]));
 }
 
-const pool = new Pool({
-  host: process.env.PGSQL_HOST || 'localhost',
-  port: Number(process.env.PGSQL_PORT) || 5432,
-  database: process.env.PGSQL_DATABASE || 'csdemo',
-  user: process.env.PGSQL_USER || 'csdemo',
-  password: process.env.PGSQL_PASSWORD
+const SEASON_ID = process.env.SEASON_ID ? parseInt(process.env.SEASON_ID) : null;
+
+function getRating(kills, rounds, deaths, k1, k2, k3, k4, k5) {
+  if (!rounds) return 0;
+  const KPR = kills / rounds / 0.679;
+  const SPR = (rounds - deaths) / rounds / 0.317;
+  const RMK = (k1 + 4 * k2 + 9 * k3 + 16 * k4 + 25 * k5) / rounds / 1.277;
+  return +((KPR + 0.7 * SPR + RMK) / 2.7).toFixed(2);
+}
+
+const pool = mysql.createPool({
+  host:     process.env.MYSQL_HOST     || 'localhost',
+  port:     Number(process.env.MYSQL_PORT) || 3306,
+  database: process.env.MYSQL_DATABASE || 'get5',
+  user:     process.env.MYSQL_USER     || 'get5',
+  password: process.env.MYSQL_PASSWORD || '',
+  waitForConnections: true,
+  connectionLimit: 10,
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -296,37 +309,44 @@ app.get('/api/brackets', async (req, res) => {
     let teamsFromDb = [];
     let matchesFromDb = [];
     try {
-      const [teamsRes, matchesRes, teamsByMatchRes] = await Promise.all([
+      const seasonWhere = SEASON_ID ? 'AND m.season_id = ?' : '';
+      const seasonParams = SEASON_ID ? [SEASON_ID] : [];
+      const [[teamsRes], [matchesRes], [teamsByMatchRes]] = await Promise.all([
         pool.query(`
-          SELECT DISTINCT team_name
-          FROM public.players
-          WHERE team_name IS NOT NULL AND TRIM(team_name) <> ''
-          ORDER BY team_name
-        `),
+          SELECT DISTINCT t.name AS team_name
+          FROM team t
+          JOIN player_stats ps ON ps.team_id = t.id
+          JOIN \`match\` m ON m.id = ps.match_id
+          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+          ORDER BY t.name
+        `, seasonParams),
         pool.query(`
-          SELECT m.checksum, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name
-          FROM public.matches m
-          LEFT JOIN public.demos d ON d.checksum = m.checksum
-          ORDER BY m.analyze_date ASC
-        `),
+          SELECT CAST(m.id AS CHAR) AS checksum, tw.name AS winner_name, m.end_time AS analyze_date,
+                 m.title AS name, ms.map_name
+          FROM \`match\` m
+          LEFT JOIN team tw ON tw.id = m.winner
+          LEFT JOIN map_stats ms ON ms.match_id = m.id AND ms.map_number = 0
+          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+          ORDER BY m.end_time ASC
+        `, seasonParams),
         pool.query(`
-          SELECT match_checksum, name, score, score_first_half, score_second_half
-          FROM public.teams
-        `)
+          SELECT CAST(m.id AS CHAR) AS match_checksum, t1.name AS name, m.team1_score AS score
+          FROM \`match\` m JOIN team t1 ON t1.id = m.team1_id
+          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+          UNION ALL
+          SELECT CAST(m.id AS CHAR), t2.name, m.team2_score
+          FROM \`match\` m JOIN team t2 ON t2.id = m.team2_id
+          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+        `, [...seasonParams, ...seasonParams])
       ]);
-      teamsFromDb = (teamsRes.rows || []).map((r) => r.team_name);
+      teamsFromDb = (teamsRes || []).map((r) => r.team_name);
       const teamsByMatch = {};
-      (teamsByMatchRes.rows || []).forEach((row) => {
+      (teamsByMatchRes || []).forEach((row) => {
         const key = row.match_checksum;
         if (!teamsByMatch[key]) teamsByMatch[key] = [];
-        teamsByMatch[key].push({
-          name: row.name,
-          score: row.score,
-          score_first_half: row.score_first_half,
-          score_second_half: row.score_second_half
-        });
+        teamsByMatch[key].push({ name: row.name, score: row.score });
       });
-      const matchesRows = matchesRes.rows || [];
+      const matchesRows = matchesRes || [];
       matchesFromDb = matchesRows.map((row, i) => {
         const sides = teamsByMatch[row.checksum] || [];
         const teamA = sides[0] || {};
@@ -371,12 +391,15 @@ app.post('/api/brackets/auth', (req, res) => {
 async function fetchWinnerNamesByChecksum(checksums) {
   const ids = (checksums || []).filter((c) => c != null && String(c).trim() !== '').map((c) => String(c).trim());
   if (!ids.length) return new Map();
-  const r = await pool.query(
-    'SELECT checksum, winner_name FROM public.matches WHERE checksum = ANY($1::text[])',
-    [ids]
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await pool.query(
+    `SELECT CAST(m.id AS CHAR) AS checksum, t.name AS winner_name
+     FROM \`match\` m LEFT JOIN team t ON t.id = m.winner
+     WHERE m.id IN (${placeholders})`,
+    ids
   );
   const map = new Map();
-  (r.rows || []).forEach((row) => {
+  (rows || []).forEach((row) => {
     map.set(String(row.checksum), row.winner_name != null ? String(row.winner_name).trim() : '');
   });
   return map;
@@ -462,103 +485,113 @@ app.post('/api/brackets', requireAdmin, async (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
   try {
-    const [playersResult, matchesResult, teamsResult, overridesResult] = await Promise.all([
+    const seasonWhere = SEASON_ID ? 'AND m.season_id = ?' : '';
+    const seasonParams = SEASON_ID ? [SEASON_ID] : [];
+    const [[playerRows], [matchRows], [teamRows]] = await Promise.all([
       pool.query(`
-        SELECT id, match_checksum, steam_id, "index", team_name, name,
-               kill_count, death_count, assist_count, headshot_count,
-               damage_health, damage_armor, first_kill_count, first_death_count, mvp_count,
-               average_damage_per_round, average_kill_per_round, average_death_per_round, utility_damage_per_round,
-               rank_type, rank, old_rank, wins_count,
-               bomb_planted_count, bomb_defused_count, hostage_rescued_count,
-               score, kast, hltv_rating, hltv_rating_2,
-               utility_damage, trade_kill_count, trade_death_count,
-               first_trade_kill_count, first_trade_death_count,
-               one_kill_count, two_kill_count, three_kill_count, four_kill_count, five_kill_count,
-               inspect_weapon_count, color, crosshair_share_code
-        FROM public.players
-        ORDER BY match_checksum, "index"
-      `),
+        SELECT
+          CONCAT(ps.match_id, '_', ps.steam_id, '_', ps.team_id) AS id,
+          CAST(ps.match_id AS CHAR) AS match_checksum,
+          ps.steam_id,
+          0 AS \`index\`,
+          t.name AS team_name,
+          ps.name,
+          SUM(ps.kills)                              AS kill_count,
+          SUM(ps.deaths)                             AS death_count,
+          SUM(ps.assists)                            AS assist_count,
+          SUM(ps.headshot_kills)                     AS headshot_count,
+          SUM(ps.damage)                             AS damage_health,
+          SUM(ps.firstkill_ct + ps.firstkill_t)     AS first_kill_count,
+          SUM(ps.firstdeath_ct + ps.firstdeath_t)   AS first_death_count,
+          SUM(ps.mvp)                                AS mvp_count,
+          SUM(ps.roundsplayed)                       AS roundsplayed,
+          SUM(ps.bomb_plants)                        AS bomb_planted_count,
+          SUM(ps.bomb_defuses)                       AS bomb_defused_count,
+          SUM(ps.kast)                               AS kast_rounds,
+          SUM(ps.util_damage)                        AS utility_damage,
+          SUM(ps.k1)                                 AS one_kill_count,
+          SUM(ps.k2)                                 AS two_kill_count,
+          SUM(ps.k3)                                 AS three_kill_count,
+          SUM(ps.k4)                                 AS four_kill_count,
+          SUM(ps.k5)                                 AS five_kill_count
+        FROM player_stats ps
+        JOIN team t ON t.id = ps.team_id
+        JOIN \`match\` m ON m.id = ps.match_id
+        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+        GROUP BY ps.match_id, ps.steam_id, ps.team_id, ps.name, t.name
+        ORDER BY ps.match_id, ps.steam_id
+      `, seasonParams),
       pool.query(`
-        SELECT m.checksum, m.demo_path, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
-               d.duration AS duration_seconds
-        FROM public.matches m
-        LEFT JOIN public.demos d ON d.checksum = m.checksum
-        ORDER BY m.analyze_date ASC
-      `),
+        SELECT CAST(m.id AS CHAR) AS checksum,
+               ms.demoFile AS demo_path,
+               tw.name AS winner_name,
+               m.end_time AS analyze_date,
+               m.title AS name,
+               ms.map_name,
+               ms_dur.duration_seconds
+        FROM \`match\` m
+        LEFT JOIN team tw ON tw.id = m.winner
+        LEFT JOIN map_stats ms ON ms.match_id = m.id AND ms.map_number = 0
+        LEFT JOIN (
+          SELECT match_id, SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) AS duration_seconds
+          FROM map_stats WHERE end_time IS NOT NULL GROUP BY match_id
+        ) ms_dur ON ms_dur.match_id = m.id
+        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+        ORDER BY m.end_time ASC
+      `, seasonParams),
       pool.query(`
-        SELECT match_checksum, name, score, score_first_half, score_second_half
-        FROM public.teams
-      `),
-      pool.query(`SELECT steam_id, name FROM public.steam_account_overrides`)
+        SELECT CAST(m.id AS CHAR) AS match_checksum, t1.name AS name, m.team1_score AS score
+        FROM \`match\` m JOIN team t1 ON t1.id = m.team1_id
+        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+        UNION ALL
+        SELECT CAST(m.id AS CHAR), t2.name, m.team2_score
+        FROM \`match\` m JOIN team t2 ON t2.id = m.team2_id
+        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+      `, [...seasonParams, ...seasonParams])
     ]);
 
-    const nameOverrides = {};
-    (overridesResult.rows || []).forEach((row) => {
-      if (row.steam_id != null && row.name != null) {
-        const n = String(row.name).trim();
-        if (n !== '') nameOverrides[row.steam_id] = n;
-      }
-    });
-
     const teamsByMatch = {};
-    (teamsResult.rows || []).forEach(row => {
+    (teamRows || []).forEach(row => {
       const key = row.match_checksum;
       if (!teamsByMatch[key]) teamsByMatch[key] = [];
-      teamsByMatch[key].push({
-        name: row.name,
-        score: row.score,
-        score_first_half: row.score_first_half,
-        score_second_half: row.score_second_half
-      });
+      teamsByMatch[key].push({ name: row.name, score: row.score });
     });
 
-    const players = (playersResult.rows || []).map(row => ({
-      id: row.id,
-      match_checksum: row.match_checksum,
-      steam_id: row.steam_id,
-      index: row.index,
-      team_name: row.team_name,
-      name: nameOverrides[row.steam_id] ?? row.name,
-      kill_count: row.kill_count,
-      death_count: row.death_count,
-      assist_count: row.assist_count,
-      headshot_count: row.headshot_count,
-      damage_health: row.damage_health,
-      damage_armor: row.damage_armor,
-      first_kill_count: row.first_kill_count,
-      first_death_count: row.first_death_count,
-      mvp_count: row.mvp_count,
-      average_damage_per_round: row.average_damage_per_round,
-      average_kill_per_round: row.average_kill_per_round,
-      average_death_per_round: row.average_death_per_round,
-      utility_damage_per_round: row.utility_damage_per_round,
-      rank_type: row.rank_type,
-      rank: row.rank,
-      old_rank: row.old_rank,
-      wins_count: row.wins_count,
-      bomb_planted_count: row.bomb_planted_count,
-      bomb_defused_count: row.bomb_defused_count,
-      hostage_rescued_count: row.hostage_rescued_count,
-      score: row.score,
-      kast: row.kast,
-      hltv_rating: row.hltv_rating,
-      hltv_rating_2: row.hltv_rating_2,
-      utility_damage: row.utility_damage,
-      trade_kill_count: row.trade_kill_count,
-      trade_death_count: row.trade_death_count,
-      first_trade_kill_count: row.first_trade_kill_count,
-      first_trade_death_count: row.first_trade_death_count,
-      one_kill_count: row.one_kill_count,
-      two_kill_count: row.two_kill_count,
-      three_kill_count: row.three_kill_count,
-      four_kill_count: row.four_kill_count,
-      five_kill_count: row.five_kill_count,
-      inspect_weapon_count: row.inspect_weapon_count,
-      color: row.color,
-      crosshair_share_code: row.crosshair_share_code
-    }));
+    const players = (playerRows || []).map(row => {
+      const rounds = row.roundsplayed || 0;
+      return {
+        id: row.id,
+        match_checksum: row.match_checksum,
+        steam_id: row.steam_id,
+        index: row.index,
+        team_name: row.team_name,
+        name: row.name,
+        kill_count: row.kill_count,
+        death_count: row.death_count,
+        assist_count: row.assist_count,
+        headshot_count: row.headshot_count,
+        damage_health: row.damage_health,
+        first_kill_count: row.first_kill_count,
+        first_death_count: row.first_death_count,
+        mvp_count: row.mvp_count,
+        average_damage_per_round: rounds > 0 ? Math.round((row.damage_health / rounds) * 100) / 100 : null,
+        average_kill_per_round:   rounds > 0 ? Math.round((row.kill_count   / rounds) * 100) / 100 : null,
+        average_death_per_round:  rounds > 0 ? Math.round((row.death_count  / rounds) * 100) / 100 : null,
+        utility_damage_per_round: rounds > 0 ? Math.round((row.utility_damage / rounds) * 100) / 100 : null,
+        bomb_planted_count: row.bomb_planted_count,
+        bomb_defused_count: row.bomb_defused_count,
+        kast: rounds > 0 ? Math.round((row.kast_rounds / rounds) * 100 * 10) / 10 : null,
+        hltv_rating: getRating(row.kill_count, rounds, row.death_count, row.one_kill_count, row.two_kill_count, row.three_kill_count, row.four_kill_count, row.five_kill_count),
+        utility_damage: row.utility_damage,
+        one_kill_count: row.one_kill_count,
+        two_kill_count: row.two_kill_count,
+        three_kill_count: row.three_kill_count,
+        four_kill_count: row.four_kill_count,
+        five_kill_count: row.five_kill_count,
+      };
+    });
 
-    const matchesRows = matchesResult.rows || [];
+    const matchesRows = matchRows || [];
     const demoIdx = demoHostFiles.getDemoBasenameIndex(demoHostDir);
     const seriesLookup = bracketsModel.buildSeriesDemoLookup(getBracketsData());
     const matches = matchesRows.map((row, i) => {
@@ -580,12 +613,8 @@ app.get('/api/stats', async (req, res) => {
         duration_seconds: row.duration_seconds != null ? row.duration_seconds : null,
         team_a_name: teamA.name,
         team_a_score: teamA.score,
-        team_a_first_half: teamA.score_first_half,
-        team_a_second_half: teamA.score_second_half,
         team_b_name: teamB.name,
         team_b_score: teamB.score,
-        team_b_first_half: teamB.score_first_half,
-        team_b_second_half: teamB.score_second_half
       };
       const dl = demoHostFiles.demoDownloadForDbPath(demoIdx, row.demo_path);
       if (dl) {
@@ -647,48 +676,60 @@ app.get('/api/match/:checksum', async (req, res) => {
   const checksum = (req.params.checksum || '').trim();
   if (!checksum) return res.status(400).json({ error: 'checksum manquant' });
   try {
-    const [matchResult, teamsResult, playersResult, overridesResult] = await Promise.all([
+    const [[matchRows2], [teamRows2], [playerRows2]] = await Promise.all([
       pool.query(`
-        SELECT m.checksum, m.demo_path, m.winner_name, m.analyze_date, d.name AS name, d.map_name AS map_name,
-               d.duration AS duration_seconds
-        FROM public.matches m
-        LEFT JOIN public.demos d ON d.checksum = m.checksum
-        WHERE m.checksum = $1
+        SELECT CAST(m.id AS CHAR) AS checksum,
+               ms.demoFile AS demo_path,
+               tw.name AS winner_name,
+               m.end_time AS analyze_date,
+               m.title AS name,
+               ms.map_name,
+               ms_dur.duration_seconds
+        FROM \`match\` m
+        LEFT JOIN team tw ON tw.id = m.winner
+        LEFT JOIN map_stats ms ON ms.match_id = m.id AND ms.map_number = 0
+        LEFT JOIN (
+          SELECT match_id, SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) AS duration_seconds
+          FROM map_stats WHERE end_time IS NOT NULL GROUP BY match_id
+        ) ms_dur ON ms_dur.match_id = m.id
+        WHERE m.id = ?
       `, [checksum]),
       pool.query(`
-        SELECT match_checksum, name, score, score_first_half, score_second_half
-        FROM public.teams WHERE match_checksum = $1
-      `, [checksum]),
+        SELECT t1.name AS name, m.team1_score AS score
+        FROM \`match\` m JOIN team t1 ON t1.id = m.team1_id WHERE m.id = ?
+        UNION ALL
+        SELECT t2.name, m.team2_score
+        FROM \`match\` m JOIN team t2 ON t2.id = m.team2_id WHERE m.id = ?
+      `, [checksum, checksum]),
       pool.query(`
-        SELECT id, match_checksum, steam_id, "index", team_name, name,
-               kill_count, death_count, assist_count, headshot_count,
-               damage_health, damage_armor, first_kill_count, first_death_count, mvp_count,
-               average_damage_per_round, average_kill_per_round, average_death_per_round, utility_damage_per_round,
-               rank_type, rank, old_rank, wins_count,
-               bomb_planted_count, bomb_defused_count, hostage_rescued_count,
-               score, kast, hltv_rating, hltv_rating_2,
-               utility_damage, trade_kill_count, trade_death_count,
-               first_trade_kill_count, first_trade_death_count,
-               one_kill_count, two_kill_count, three_kill_count, four_kill_count, five_kill_count,
-               inspect_weapon_count, color, crosshair_share_code
-        FROM public.players WHERE match_checksum = $1
-        ORDER BY "index"
-      `, [checksum]),
-      pool.query(`SELECT steam_id, name FROM public.steam_account_overrides`)
+        SELECT
+          CONCAT(ps.match_id, '_', ps.steam_id, '_', ps.team_id) AS id,
+          CAST(ps.match_id AS CHAR) AS match_checksum,
+          ps.steam_id, 0 AS \`index\`, t.name AS team_name, ps.name,
+          SUM(ps.kills) AS kill_count, SUM(ps.deaths) AS death_count,
+          SUM(ps.assists) AS assist_count, SUM(ps.headshot_kills) AS headshot_count,
+          SUM(ps.damage) AS damage_health,
+          SUM(ps.firstkill_ct + ps.firstkill_t) AS first_kill_count,
+          SUM(ps.firstdeath_ct + ps.firstdeath_t) AS first_death_count,
+          SUM(ps.mvp) AS mvp_count, SUM(ps.roundsplayed) AS roundsplayed,
+          SUM(ps.bomb_plants) AS bomb_planted_count, SUM(ps.bomb_defuses) AS bomb_defused_count,
+          SUM(ps.kast) AS kast_rounds,
+          SUM(ps.util_damage) AS utility_damage,
+          SUM(ps.k1) AS one_kill_count, SUM(ps.k2) AS two_kill_count,
+          SUM(ps.k3) AS three_kill_count, SUM(ps.k4) AS four_kill_count,
+          SUM(ps.k5) AS five_kill_count
+        FROM player_stats ps
+        JOIN team t ON t.id = ps.team_id
+        WHERE ps.match_id = ?
+        GROUP BY ps.match_id, ps.steam_id, ps.team_id, ps.name, t.name
+        ORDER BY ps.team_id, ps.steam_id
+      `, [checksum])
     ]);
 
-    const matchRow = matchResult.rows && matchResult.rows[0];
+    const matchRow = matchRows2 && matchRows2[0];
     if (!matchRow) return res.status(404).json({ error: 'Match introuvable' });
 
-    const nameOverrides = {};
-    (overridesResult.rows || []).forEach((row) => {
-      if (row.steam_id != null && row.name != null) {
-        const n = String(row.name).trim();
-        if (n !== '') nameOverrides[row.steam_id] = n;
-      }
-    });
-
-    const sides = (teamsResult.rows || []).slice(0, 2);
+    const sides = (teamRows2 || []).slice(0, 2);
     const teamA = sides[0] || {};
     const teamB = sides[1] || {};
     const dbName = matchRow.name != null && String(matchRow.name).trim() !== '';
@@ -705,12 +746,8 @@ app.get('/api/match/:checksum', async (req, res) => {
       duration_seconds: matchRow.duration_seconds != null ? matchRow.duration_seconds : null,
       team_a_name: teamA.name,
       team_a_score: teamA.score,
-      team_a_first_half: teamA.score_first_half,
-      team_a_second_half: teamA.score_second_half,
       team_b_name: teamB.name,
       team_b_score: teamB.score,
-      team_b_first_half: teamB.score_first_half,
-      team_b_second_half: teamB.score_second_half
     };
     const demoIdxOne = demoHostFiles.getDemoBasenameIndex(demoHostDir);
     const dlOne = demoHostFiles.demoDownloadForDbPath(demoIdxOne, matchRow.demo_path);
@@ -720,52 +757,40 @@ app.get('/api/match/:checksum', async (req, res) => {
     }
     attachSeriesFieldsToMatchObj(match, matchRow.checksum, bracketsModel.buildSeriesDemoLookup(getBracketsData()));
 
-    const players = (playersResult.rows || []).map((row) => ({
-      id: row.id,
-      match_checksum: row.match_checksum,
-      steam_id: row.steam_id,
-      index: row.index,
-      team_name: row.team_name,
-      name: nameOverrides[row.steam_id] ?? row.name,
-      kill_count: row.kill_count,
-      death_count: row.death_count,
-      assist_count: row.assist_count,
-      headshot_count: row.headshot_count,
-      damage_health: row.damage_health,
-      damage_armor: row.damage_armor,
-      first_kill_count: row.first_kill_count,
-      first_death_count: row.first_death_count,
-      mvp_count: row.mvp_count,
-      average_damage_per_round: row.average_damage_per_round,
-      average_kill_per_round: row.average_kill_per_round,
-      average_death_per_round: row.average_death_per_round,
-      utility_damage_per_round: row.utility_damage_per_round,
-      rank_type: row.rank_type,
-      rank: row.rank,
-      old_rank: row.old_rank,
-      wins_count: row.wins_count,
-      bomb_planted_count: row.bomb_planted_count,
-      bomb_defused_count: row.bomb_defused_count,
-      hostage_rescued_count: row.hostage_rescued_count,
-      score: row.score,
-      kast: row.kast,
-      hltv_rating: row.hltv_rating,
-      hltv_rating_2: row.hltv_rating_2,
-      utility_damage: row.utility_damage,
-      trade_kill_count: row.trade_kill_count,
-      trade_death_count: row.trade_death_count,
-      first_trade_kill_count: row.first_trade_kill_count,
-      first_trade_death_count: row.first_trade_death_count,
-      one_kill_count: row.one_kill_count,
-      two_kill_count: row.two_kill_count,
-      three_kill_count: row.three_kill_count,
-      four_kill_count: row.four_kill_count,
-      five_kill_count: row.five_kill_count,
-      inspect_weapon_count: row.inspect_weapon_count,
-      color: row.color,
-      crosshair_share_code: row.crosshair_share_code,
-      custom_avatar_url: getCustomAvatarUrl(row.steam_id) || null
-    }));
+    const players = (playerRows2 || []).map((row) => {
+      const rounds = row.roundsplayed || 0;
+      return {
+        id: row.id,
+        match_checksum: row.match_checksum,
+        steam_id: row.steam_id,
+        index: row.index,
+        team_name: row.team_name,
+        name: row.name,
+        kill_count: row.kill_count,
+        death_count: row.death_count,
+        assist_count: row.assist_count,
+        headshot_count: row.headshot_count,
+        damage_health: row.damage_health,
+        first_kill_count: row.first_kill_count,
+        first_death_count: row.first_death_count,
+        mvp_count: row.mvp_count,
+        average_damage_per_round: rounds > 0 ? Math.round((row.damage_health / rounds) * 100) / 100 : null,
+        average_kill_per_round:   rounds > 0 ? Math.round((row.kill_count   / rounds) * 100) / 100 : null,
+        average_death_per_round:  rounds > 0 ? Math.round((row.death_count  / rounds) * 100) / 100 : null,
+        utility_damage_per_round: rounds > 0 ? Math.round((row.utility_damage / rounds) * 100) / 100 : null,
+        bomb_planted_count: row.bomb_planted_count,
+        bomb_defused_count: row.bomb_defused_count,
+        kast: rounds > 0 ? Math.round((row.kast_rounds / rounds) * 100 * 10) / 10 : null,
+        hltv_rating: getRating(row.kill_count, rounds, row.death_count, row.one_kill_count, row.two_kill_count, row.three_kill_count, row.four_kill_count, row.five_kill_count),
+        utility_damage: row.utility_damage,
+        one_kill_count: row.one_kill_count,
+        two_kill_count: row.two_kill_count,
+        three_kill_count: row.three_kill_count,
+        four_kill_count: row.four_kill_count,
+        five_kill_count: row.five_kill_count,
+        custom_avatar_url: getCustomAvatarUrl(row.steam_id) || null
+      };
+    });
 
     const matchSteamIds = [...new Set(players.map((p) => p.steam_id).filter(Boolean))];
     const matchAvatarMap = await fetchSteamAvatars(matchSteamIds);

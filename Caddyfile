@@ -1,0 +1,3 @@
+helloview.example.com {
+    reverse_proxy helloview:3000
+}
