@@ -395,7 +395,7 @@ app.get('/api/brackets', async (req, res) => {
         seriesIdx++;
       });
 
-      matchesFromDb = [...seriesEntries, ...Object.values(perMapB)];
+      matchesFromDb = Object.values(perMapB);
     } catch (e) {
       console.error('brackets api:', e.message);
     }
