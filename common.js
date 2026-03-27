@@ -323,7 +323,7 @@
     wrap.className = 'match-team-table-wrap';
     const table = document.createElement('table');
     table.className = 'match-overlay-players-table';
-    const headers = ['Joueur', 'K', 'A', 'D', 'K/D diff', 'K/D', 'DMG', 'KAST', 'UDR', 'HS', 'HS%', 'MVP', 'HLTV 2.0', 'HLTV', 'UD', 'FK', 'FD', 'TK', 'TD', 'FTK', 'FTD', 'S', 'BP', 'BD', '5K', '4K', '3K', '2K'];
+    const headers = ['Joueur', 'K', 'A', 'D', 'K/D diff', 'K/D', 'DMG', 'KAST', 'UDR', 'HS', 'HS%', 'MVP', 'HLTV 2.0', 'UD', 'FK', 'FD', 'TK', 'TD', 'FTK', 'FTD', 'S', 'BP', 'BD', '5K', '4K', '3K', '2K'];
     table.innerHTML = '<thead><tr>' + headers.map((h) => '<th>' + escapeHtml(h) + '</th>').join('') + '</tr></thead><tbody></tbody>';
     const tbody = table.querySelector('tbody');
     teamPlayers.forEach((p) => {
@@ -361,7 +361,6 @@
         hsPct != null ? formatNum(hsPct, 1) + '%' : '—',
         p.mvp_count != null ? formatNum(p.mvp_count, 0) : '—',
         h2Val != null ? '<span class="num ' + r2Class + '">' + formatNum(h2Val, 2) + '</span>' : '—',
-        h1Val != null ? formatNum(h1Val, 2) : '—',
         p.utility_damage != null ? formatNum(p.utility_damage, 0) : '—',
         p.first_kill_count != null ? formatNum(p.first_kill_count, 0) : '—',
         p.first_death_count != null ? formatNum(p.first_death_count, 0) : '—',
@@ -663,7 +662,6 @@
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">W/L</span><span class="team-overlay-stat-value">' + wins + ' / ' + losses + '</span></div>' +
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">W/L %</span><span class="team-overlay-stat-value">' + winsPct + '</span></div>' +
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">Objectifs (plantée / désamorcée)</span><span class="team-overlay-stat-value">' + totalPlanted + ' / ' + totalDefused + '</span></div>' +
-      '<div class="team-overlay-stat"><span class="team-overlay-stat-label">HLTV 1.0</span><span class="team-overlay-stat-value">' + (avgHltv1 != null ? formatNum(avgHltv1, 2) : '—') + '</span></div>' +
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">HLTV 2.0</span><span class="team-overlay-stat-value">' + (avgHltv2 != null ? formatNum(avgHltv2, 2) : '—') + '</span></div>' +
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">KAST</span><span class="team-overlay-stat-value">' + (avgKast != null ? formatNum(avgKast, 1) + '%' : '—') + '</span></div>' +
       '<div class="team-overlay-stat"><span class="team-overlay-stat-label">Kills / round (moy.)</span><span class="team-overlay-stat-value">' + (avgKpr != null ? formatNum(avgKpr, 2) : '—') + '</span></div>' +
