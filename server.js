@@ -365,6 +365,8 @@ app.get('/api/brackets', async (req, res) => {
           winner_name: row.winner_name || null,
           team_a_name: row.team_a_name || null,
           team_b_name: row.team_b_name || null,
+          team_a_score: row.team_a_score != null ? row.team_a_score : null,
+          team_b_score: row.team_b_score != null ? row.team_b_score : null,
           map_name: row.map_name || null,
           label: `${row.team_a_name || '?'} vs ${row.team_b_name || '?'} · ${mapLabel}`
         };

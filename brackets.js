@@ -338,6 +338,19 @@
     return { winsA, winsB };
   }
 
+  function formatMatchScore(m) {
+    const ids = getMatchDemoIds(m);
+    if (!ids.length) return '';
+    const bo = getMatchBestOf(m);
+    if (bo > 1) return formatSeriesScoreShort(m);
+    const row = (getMatchesFromDb() || []).find((x) => x.id === ids[0]);
+    if (!row) return '';
+    const sa = row.team_a_score != null ? row.team_a_score : null;
+    const sb = row.team_b_score != null ? row.team_b_score : null;
+    if (sa == null || sb == null) return '';
+    return sa + '–' + sb;
+  }
+
   function formatSeriesScoreShort(m) {
     const bo = getMatchBestOf(m);
     if (bo <= 1) return '';
@@ -570,11 +583,16 @@
         if (a && !rec[a]) rec[a] = { w: 0, l: 0, e: 0 };
         if (b && !rec[b]) rec[b] = { w: 0, l: 0, e: 0 };
         if (!a || !b) return;
-        if (!w) {
-          if (getMatchDemoIds(m).length) { rec[a].e++; rec[b].e++; }
-        } else if (normName(w) === normName(a)) {
+        const ids = getMatchDemoIds(m);
+        const dbRow = ids.length ? (getMatchesFromDb() || []).find((x) => x.id === ids[0]) : null;
+        const sa = dbRow ? dbRow.team_a_score : null;
+        const sb = dbRow ? dbRow.team_b_score : null;
+        const winner = w || (sa != null && sb != null ? (sa > sb ? a : sb > sa ? b : '') : '');
+        if (!winner) {
+          if (ids.length && sa != null && sb != null && sa === sb) { rec[a].e++; rec[b].e++; }
+        } else if (normName(winner) === normName(a)) {
           rec[a].w++; rec[b].l++;
-        } else if (normName(w) === normName(b)) {
+        } else if (normName(winner) === normName(b)) {
           rec[b].w++; rec[a].l++;
         }
       });
@@ -605,9 +623,9 @@
         '<thead><tr>' +
         '<th class="groups-rank">#</th>' +
         '<th class="groups-team-col">Équipe</th>' +
-        '<th title="Victoires">V</th>' +
-        '<th title="Défaites">D</th>' +
-        '<th title="Égalités">É</th>' +
+        '<th title="Wins">W</th>' +
+        '<th title="Draws">D</th>' +
+        '<th title="Losses">L</th>' +
         '</tr></thead>';
       const tbody = document.createElement('tbody');
       teams.forEach(([name, s], i) => {
@@ -616,8 +634,8 @@
           '<td class="groups-rank">' + (i + 1) + '</td>' +
           '<td class="groups-team-col">' + escapeHtml(name) + '</td>' +
           '<td class="groups-wins">' + s.w + '</td>' +
-          '<td class="groups-losses">' + s.l + '</td>' +
-          '<td class="groups-draws">' + s.e + '</td>';
+          '<td class="groups-draws">' + s.e + '</td>' +
+          '<td class="groups-losses">' + s.l + '</td>';
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -652,9 +670,13 @@
         const a = (m.teamA || '').trim();
         const b = (m.teamB || '').trim();
         const w = (m.winner || '').trim();
-        const aWon = w && normName(w) === normName(a);
-        const bWon = w && normName(w) === normName(b);
-        const serS = formatSeriesScoreShort(m);
+        const ids = getMatchDemoIds(m);
+        const dbRow = ids.length ? (getMatchesFromDb() || []).find((x) => x.id === ids[0]) : null;
+        const sa = dbRow ? dbRow.team_a_score : null;
+        const sb = dbRow ? dbRow.team_b_score : null;
+        const aWon = (w && normName(w) === normName(a)) || (!w && sa != null && sb != null && sa > sb);
+        const bWon = (w && normName(w) === normName(b)) || (!w && sa != null && sb != null && sb > sa);
+        const scoreStr = formatMatchScore(m);
 
         const tr = document.createElement('tr');
         tr.className = 'groups-match-row' + (canEditBrackets() ? ' admin' : ' clickable');
@@ -664,10 +686,14 @@
         tr.dataset.lane = groupLane;
         tr.dataset.roundIndex = String(ri);
         tr.dataset.matchIndex = String(mi);
+        const scoreA = sa != null ? String(sa) : (scoreStr ? scoreStr.split('–')[0] : '');
+        const scoreB = sb != null ? String(sb) : (scoreStr ? scoreStr.split('–')[1] : '');
+        const hasScore = scoreStr !== '';
         tr.innerHTML =
-          '<td class="gm-team gm-team-a' + (aWon ? ' gm-winner' : (bWon ? ' gm-loser' : '')) + '">' + escapeHtml(a || '—') + '</td>' +
-          '<td class="gm-vs">' + (serS ? escapeHtml(serS) : 'vs') + '</td>' +
-          '<td class="gm-team gm-team-b' + (bWon ? ' gm-winner' : (aWon ? ' gm-loser' : '')) + '">' + escapeHtml(b || '—') + '</td>';
+          '<td class="gm-team gm-team-a">' + escapeHtml(a || '—') + '</td>' +
+          '<td class="gm-score' + (hasScore ? (aWon ? ' gm-winner' : ' gm-loser') : '') + '">' + (hasScore ? escapeHtml(scoreA) : '') + '</td>' +
+          '<td class="gm-score' + (hasScore ? (bWon ? ' gm-winner' : ' gm-loser') : ' gm-vs-text') + '">' + (hasScore ? escapeHtml(scoreB) : 'vs') + '</td>' +
+          '<td class="gm-team gm-team-b">' + escapeHtml(b || '—') + '</td>';
 
         if (canEditBrackets()) {
           tr.addEventListener('click', () => openEditModal(tournamentId, groupLane, ri, mi));
