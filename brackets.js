@@ -303,7 +303,10 @@
   const normName = (s) => (s || '').trim().toLowerCase();
 
   function getMatchBestOf(m) {
-    return Number(m && m.bestOf) === 3 ? 3 : 1;
+    const v = Number(m && m.bestOf);
+    if (v === 5) return 5;
+    if (v === 3) return 3;
+    return 1;
   }
 
   function getMatchDemoIds(m) {
@@ -550,6 +553,87 @@
     });
     const arrows = container.querySelectorAll('.swiss-flux-arrow');
     if (arrows.length) arrows[arrows.length - 1].remove();
+  }
+
+  function renderGroups(panelEl, tournament) {
+    const d = safeDomId(tournament.id);
+    const standingsWrap = panelEl.querySelector('#groups-standings-' + d);
+    const roundsWrap = panelEl.querySelector('#groups-rounds-' + d);
+    if (!standingsWrap || !roundsWrap) return;
+
+    // Compute standings from match results
+    const pts = {}; // teamName -> { w, l }
+    (tournament.rounds || []).forEach((r) => {
+      (r.matches || []).forEach((m) => {
+        const a = (m.teamA || '').trim();
+        const b = (m.teamB || '').trim();
+        const w = (m.winner || '').trim();
+        if (a && !pts[a]) pts[a] = { w: 0, l: 0 };
+        if (b && !pts[b]) pts[b] = { w: 0, l: 0 };
+        if (w && a && b) {
+          if (normName(w) === normName(a)) { pts[a].w++; pts[b].l++; }
+          else if (normName(w) === normName(b)) { pts[b].w++; pts[a].l++; }
+        }
+      });
+    });
+    const teams = Object.entries(pts).sort(([, a], [, b]) => b.w - a.w || a.l - b.l);
+
+    // Standings table
+    standingsWrap.innerHTML = '';
+    if (teams.length) {
+      const table = document.createElement('table');
+      table.className = 'groups-standings';
+      table.innerHTML =
+        '<thead><tr>' +
+        '<th class="groups-rank">#</th>' +
+        '<th class="groups-team-col">Équipe</th>' +
+        '<th>V</th><th>D</th>' +
+        '</tr></thead>';
+      const tbody = document.createElement('tbody');
+      teams.forEach(([name, s], i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="groups-rank">' + (i + 1) + '</td>' +
+          '<td class="groups-team-col">' + escapeHtml(name) + '</td>' +
+          '<td class="groups-wins">' + s.w + '</td>' +
+          '<td class="groups-losses">' + s.l + '</td>';
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      standingsWrap.appendChild(table);
+    }
+
+    // Rounds
+    roundsWrap.innerHTML = '';
+    (tournament.rounds || []).forEach((round, ri) => {
+      const col = document.createElement('div');
+      col.className = 'groups-round';
+      const title = (round.title != null && String(round.title).trim() !== '') ? String(round.title).trim() : ('Round ' + (ri + 1));
+      col.innerHTML = '<h3 class="groups-round-title">' + escapeHtml(title) + '</h3><div class="groups-round-matches"></div>';
+      const matchContainer = col.querySelector('.groups-round-matches');
+      (round.matches || []).forEach((m, mi) => {
+        const [winner, loser] = getWinnerLoser(m);
+        const cell = document.createElement('div');
+        cell.className = 'match-cell' + (canEditBrackets() ? ' admin' : '');
+        cell.dataset.tournamentId = tournament.id;
+        cell.dataset.lane = 'groups';
+        cell.dataset.roundIndex = String(ri);
+        cell.dataset.matchIndex = String(mi);
+        const serS = formatSeriesScoreShort(m);
+        cell.innerHTML =
+          '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
+          '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
+          (serS ? '<span class="bracket-match-series">' + escapeHtml(serS) + '</span>' : '');
+        if (canEditBrackets()) {
+          cell.addEventListener('click', () => openEditModal(tournament.id, 'groups', ri, mi));
+        } else {
+          cell.classList.add('clickable');
+          cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, 'groups', ri, mi));
+        }
+        matchContainer.appendChild(cell);
+      });
+      roundsWrap.appendChild(col);
+    });
   }
 
   function renderSwiss(panelEl, tournament) {
@@ -915,6 +999,18 @@
           '<div class="swiss-parcours-view hidden" id="swiss-parcours-view-' + d + '">' +
           '<div class="parcours-table-wrap"><table class="parcours-table" id="parcours-table-' + d + '"></table></div></div>';
         panelsRoot.appendChild(section);
+      } else if (t.type === 'groups') {
+        const section = document.createElement('section');
+        section.className = 'brackets-panel' + (idx === 0 ? '' : ' hidden');
+        section.id = 'panel-' + d;
+        section.dataset.tournamentId = t.id;
+        section.innerHTML =
+          '<p class="brackets-desc">' + escapeHtml(t.description || '') + '</p>' +
+          '<div class="groups-wrap">' +
+          '<div class="groups-standings-wrap" id="groups-standings-' + d + '"></div>' +
+          '<div class="groups-rounds" id="groups-rounds-' + d + '"></div>' +
+          '</div>';
+        panelsRoot.appendChild(section);
       } else {
         const section = document.createElement('section');
         section.className = 'brackets-panel' + (idx === 0 ? '' : ' hidden');
@@ -1016,6 +1112,7 @@
       const panel = document.getElementById('panel-' + d);
       if (!panel) return;
       if (t.type === 'swiss') renderSwiss(panel, t);
+      else if (t.type === 'groups') renderGroups(panel, t);
       else renderEliminationPanel(panel, t);
     });
     setupBracketLinkObservers();
@@ -1029,13 +1126,19 @@
 
   function getEditFormMatchBo() {
     const r = document.querySelector('input[name="edit-match-bo"]:checked');
-    return r && String(r.value) === '3' ? 3 : 1;
+    const v = r ? Number(r.value) : 1;
+    if (v === 5) return 5;
+    if (v === 3) return 3;
+    return 1;
   }
 
   function updateEditDemoFormatDesc() {
     const el = $('edit-demo-format-desc');
     if (!el) return;
-    if (getEditFormMatchBo() === 3) {
+    const bo = getEditFormMatchBo();
+    if (bo === 5) {
+      el.textContent = 'BO5 : ajoutez 1 à 5 démos au fil des cartes (ordre des manches). Le vainqueur de série est calculé quand une équipe a 3 manches gagnantes.';
+    } else if (bo === 3) {
       el.textContent = 'BO3 : ajoutez 1 à 3 démos au fil des cartes (ordre des manches). Le vainqueur de série est calculé quand une équipe a 2 manches gagnantes.';
     } else {
       el.textContent = 'BO1 : une seule démo.';
@@ -1048,7 +1151,7 @@
     if (!slotsHost) return;
     if (!window.HelloView || !window.HelloView.createSearchableSelectCombo) return;
     slotsHost.innerHTML = '';
-    const count = matchBo === 3 ? 3 : 1;
+    const count = matchBo === 5 ? 5 : matchBo === 3 ? 3 : 1;
     const ids = idsPrefill || [];
     for (let i = 0; i < count; i++) {
       const wrap = document.createElement('div');
@@ -1139,13 +1242,17 @@
     const matchBo = getMatchBestOf(m);
     const bo1 = $('edit-match-bo1');
     const bo3 = $('edit-match-bo3');
-    if (bo1) bo1.checked = matchBo !== 3;
+    const bo5 = $('edit-match-bo5');
+    if (bo1) bo1.checked = matchBo === 1;
     if (bo3) bo3.checked = matchBo === 3;
+    if (bo5) bo5.checked = matchBo === 5;
     updateEditDemoFormatDesc();
     const rawIds = getMatchDemoIds(m);
-    const prefill = matchBo === 3
-      ? [rawIds[0] || '', rawIds[1] || '', rawIds[2] || '']
-      : [rawIds[0] || ''];
+    const prefill = matchBo === 5
+      ? [rawIds[0] || '', rawIds[1] || '', rawIds[2] || '', rawIds[3] || '', rawIds[4] || '']
+      : matchBo === 3
+        ? [rawIds[0] || '', rawIds[1] || '', rawIds[2] || '']
+        : [rawIds[0] || ''];
     renderEditDemoSlots(matchBo, prefill);
 
     $('edit-teamA').value = (m.teamA || '').trim();
@@ -1229,7 +1336,12 @@
     const matchBo = getEditFormMatchBo();
     const slotSelects = document.querySelectorAll('#edit-demo-slots select');
     const demoIds = Array.from(slotSelects).map((s) => (s.value || '').trim()).filter(Boolean);
-    if (matchBo === 3) {
+    if (matchBo === 5) {
+      if (demoIds.length > 5) {
+        alert('BO5 : au plus 5 démos.');
+        return;
+      }
+    } else if (matchBo === 3) {
       if (demoIds.length > 3) {
         alert('BO3 : au plus 3 démos, ou laissez toutes les listes vides pour retirer les liens.');
         return;

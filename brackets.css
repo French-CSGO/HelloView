@@ -485,6 +485,93 @@ body.brackets-page .footer {
 }
 
 
+/* ── Groups (Round Robin) ──────────────────────────────────────────────────── */
+
+.groups-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.groups-standings-wrap {
+  flex-shrink: 0;
+}
+
+.groups-standings {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+
+.groups-standings thead tr {
+  border-bottom: 2px solid var(--accent);
+}
+
+.groups-standings th {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--accent);
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.groups-standings th.groups-team-col,
+.groups-standings td.groups-team-col {
+  text-align: left;
+}
+
+.groups-standings td {
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+}
+
+.groups-standings tbody tr:hover {
+  background: var(--card-bg);
+}
+
+.groups-rank {
+  color: var(--muted) !important;
+  font-size: 0.78rem;
+  width: 1.5rem;
+}
+
+.groups-wins { color: var(--green, #4caf50) !important; font-weight: 700; }
+.groups-losses { color: var(--red, #f44336) !important; }
+
+.groups-rounds {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.groups-round {
+  flex-shrink: 0;
+  min-width: 200px;
+}
+
+.groups-round-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.groups-round-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 /* Swiss grid — colonnes centrées par rapport à une ligne horizontale centrale */
 .swiss-grid {
   display: flex;
