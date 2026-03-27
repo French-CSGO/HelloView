@@ -253,6 +253,7 @@
   function updateAdminUI() {
     const btnAdmin = $('btn-admin');
     const btnLogout = $('btn-logout');
+    const btnNewTournament = $('btn-new-tournament');
     const header = $('brackets-header');
     const readWrap = $('admin-read-mode-wrap');
     const readToggle = $('admin-read-mode-toggle');
@@ -260,6 +261,7 @@
     if (state.isAdmin) {
       btnAdmin.classList.add('hidden');
       btnLogout.classList.remove('hidden');
+      if (btnNewTournament) btnNewTournament.classList.toggle('hidden', !!state.adminReadMode);
       if (readWrap) readWrap.classList.remove('hidden');
       if (readCaption) readCaption.textContent = state.adminReadMode ? 'Mode lecture' : 'Mode écriture';
       if (readToggle) {
@@ -273,6 +275,7 @@
     } else {
       btnAdmin.classList.remove('hidden');
       btnLogout.classList.add('hidden');
+      if (btnNewTournament) btnNewTournament.classList.add('hidden');
       if (readWrap) readWrap.classList.add('hidden');
       if (header) {
         header.classList.remove('is-admin');
@@ -883,6 +886,15 @@
       tab.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
       tab.dataset.panelId = 'panel-' + d;
       tab.textContent = t.title || t.id;
+      if (canEditBrackets()) {
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'tab-delete-btn';
+        delBtn.title = 'Supprimer ce tournoi';
+        delBtn.textContent = '×';
+        delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteTournament(t.id, t.title || t.id); });
+        tab.appendChild(delBtn);
+      }
       tabsNav.appendChild(tab);
 
       if (t.type === 'swiss') {
@@ -1406,6 +1418,22 @@
       updateAdminUI();
     });
 
+    async function deleteTournament(id, label) {
+      if (!state.token) return;
+      if (!confirm(`Supprimer le tournoi "${label}" ?`)) return;
+      try {
+        const res = await fetch('/api/brackets/tournaments/' + encodeURIComponent(id), {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + state.token }
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(json.error || 'Erreur suppression'); return; }
+        state.data = json;
+        builtPanelIds = '';
+        renderAll();
+      } catch (err) { alert(err.message || 'Erreur réseau'); }
+    }
+
     $('modal-form').addEventListener('submit', submitEdit);
     $('modal-cancel').addEventListener('click', closeEditModal);
     $('modal-overlay').addEventListener('click', (e) => { if (e.target === $('modal-overlay')) closeEditModal(); });
@@ -1436,6 +1464,57 @@
     $('login-cancel').addEventListener('click', closeLoginModal);
     $('login-overlay').addEventListener('click', (e) => { if (e.target === $('login-overlay')) closeLoginModal(); });
 
+    // New tournament modal
+    const btnNewT = $('btn-new-tournament');
+    const newTOverlay = $('new-tournament-overlay');
+    const newTForm = $('new-tournament-form');
+    const newTTypeInputs = newTForm ? newTForm.querySelectorAll('input[name="new-tournament-type"]') : [];
+    const newTTeamCountWrap = $('new-tournament-teamcount-wrap');
+    const newTError = $('new-tournament-error');
+    function openNewTournamentModal() {
+      if (!newTOverlay) return;
+      if (newTForm) newTForm.reset();
+      if (newTError) { newTError.textContent = ''; newTError.classList.add('hidden'); }
+      if (newTTeamCountWrap) newTTeamCountWrap.classList.add('hidden');
+      newTOverlay.classList.remove('hidden');
+    }
+    function closeNewTournamentModal() {
+      if (newTOverlay) newTOverlay.classList.add('hidden');
+    }
+    if (btnNewT) btnNewT.addEventListener('click', openNewTournamentModal);
+    if (newTOverlay) newTOverlay.addEventListener('click', (e) => { if (e.target === newTOverlay) closeNewTournamentModal(); });
+    if ($('new-tournament-cancel')) $('new-tournament-cancel').addEventListener('click', closeNewTournamentModal);
+    newTTypeInputs.forEach(r => {
+      r.addEventListener('change', () => {
+        const v = newTForm.querySelector('input[name="new-tournament-type"]:checked').value;
+        if (newTTeamCountWrap) newTTeamCountWrap.classList.toggle('hidden', v === 'swiss');
+      });
+    });
+    if (newTForm) {
+      newTForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = ($('new-tournament-name') || {}).value?.trim();
+        const type = (newTForm.querySelector('input[name="new-tournament-type"]:checked') || {}).value || 'swiss';
+        const teamCount = ($('new-tournament-teamcount') || {}).value || '8';
+        if (!title) { if (newTError) { newTError.textContent = 'Titre requis'; newTError.classList.remove('hidden'); } return; }
+        try {
+          const res = await fetch('/api/brackets/tournaments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.token },
+            body: JSON.stringify({ title, type, teamCount })
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) { if (newTError) { newTError.textContent = json.error || 'Erreur'; newTError.classList.remove('hidden'); } return; }
+          state.data = json;
+          builtPanelIds = '';
+          closeNewTournamentModal();
+          renderAll();
+        } catch (err) {
+          if (newTError) { newTError.textContent = err.message || 'Erreur réseau'; newTError.classList.remove('hidden'); }
+        }
+      });
+    }
+
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (matchOverlay && !matchOverlay.hasAttribute('hidden')) {
@@ -1456,6 +1535,10 @@
       }
       if ($('modal-overlay') && !$('modal-overlay').classList.contains('hidden')) {
         closeEditModal();
+        return;
+      }
+      if ($('new-tournament-overlay') && !$('new-tournament-overlay').classList.contains('hidden')) {
+        closeNewTournamentModal();
       }
     });
   }

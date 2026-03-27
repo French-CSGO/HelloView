@@ -65,6 +65,11 @@ function getBracketsData() {
   try {
     if (fs.existsSync(bracketsPath)) {
       const raw = fs.readFileSync(bracketsPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      // If the file explicitly has an empty v2 tournaments array, honour it (user cleared all)
+      if (parsed && parsed.schemaVersion === 2 && Array.isArray(parsed.tournaments) && parsed.tournaments.length === 0) {
+        return { schemaVersion: 2, tournaments: [] };
+      }
       return bracketsModel.parseBracketsFileContent(raw);
     }
   } catch (e) {
@@ -311,7 +316,7 @@ app.get('/api/brackets', async (req, res) => {
     try {
       const seasonWhere = SEASON_ID ? 'AND m.season_id = ?' : '';
       const seasonParams = SEASON_ID ? [SEASON_ID] : [];
-      const [[teamsRes], [matchesRes], [teamsByMatchRes]] = await Promise.all([
+      const [[teamsRes], [mapsRes]] = await Promise.all([
         pool.query(`
           SELECT DISTINCT t.name AS team_name
           FROM team t
@@ -321,50 +326,76 @@ app.get('/api/brackets', async (req, res) => {
           ORDER BY t.name
         `, seasonParams),
         pool.query(`
-          SELECT CAST(m.id AS CHAR) AS checksum, tw.name AS winner_name, m.end_time AS analyze_date,
-                 m.title AS name, ms.map_name
-          FROM \`match\` m
-          LEFT JOIN team tw ON tw.id = m.winner
-          LEFT JOIN map_stats ms ON ms.match_id = m.id AND ms.map_number = 0
+          SELECT
+            CONCAT(ms.match_id, '_', ms.map_number) AS checksum,
+            CAST(ms.match_id AS CHAR)               AS series_id,
+            ms.map_number,
+            tw.name                                 AS winner_name,
+            ms.end_time                             AS analyze_date,
+            ms.map_name,
+            m.title                                 AS series_title,
+            t1.name                                 AS team_a_name,
+            ms.team1_score                          AS team_a_score,
+            t2.name                                 AS team_b_name,
+            ms.team2_score                          AS team_b_score,
+            m.max_maps                              AS series_max_maps,
+            m.team1_score                           AS series_score_a,
+            m.team2_score                           AS series_score_b,
+            tw_s.name                               AS series_winner_name,
+            m.end_time                              AS series_end_time
+          FROM map_stats ms
+          JOIN \`match\` m ON m.id = ms.match_id
+          LEFT JOIN team tw   ON tw.id   = ms.winner
+          LEFT JOIN team tw_s ON tw_s.id = m.winner
+          JOIN team t1 ON t1.id = m.team1_id
+          JOIN team t2 ON t2.id = m.team2_id
           WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
-          ORDER BY m.end_time ASC
-        `, seasonParams),
-        pool.query(`
-          SELECT CAST(m.id AS CHAR) AS match_checksum, t1.name AS name, m.team1_score AS score
-          FROM \`match\` m JOIN team t1 ON t1.id = m.team1_id
-          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
-          UNION ALL
-          SELECT CAST(m.id AS CHAR), t2.name, m.team2_score
-          FROM \`match\` m JOIN team t2 ON t2.id = m.team2_id
-          WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
-        `, [...seasonParams, ...seasonParams])
+          ORDER BY m.end_time ASC, m.id, ms.map_number
+        `, seasonParams)
       ]);
       teamsFromDb = (teamsRes || []).map((r) => r.team_name);
-      const teamsByMatch = {};
-      (teamsByMatchRes || []).forEach((row) => {
-        const key = row.match_checksum;
-        if (!teamsByMatch[key]) teamsByMatch[key] = [];
-        teamsByMatch[key].push({ name: row.name, score: row.score });
-      });
-      const matchesRows = matchesRes || [];
-      matchesFromDb = matchesRows.map((row, i) => {
-        const sides = teamsByMatch[row.checksum] || [];
-        const teamA = sides[0] || {};
-        const teamB = sides[1] || {};
-        const dbName = row.name != null && String(row.name).trim() !== '';
-        const matchName = dbName ? String(row.name).trim() : null;
-        const label = matchName ?? (row.analyze_date
-          ? `Match ${i + 1} · ${new Date(row.analyze_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
-          : `Match ${i + 1}`);
-        return {
+      const G5_DEFAULT_B = /^Map \{MAPNUMBER\} of \{MAXMAPS\}$/i;
+
+      // Build per-map entries
+      const perMapB = {};
+      (mapsRes || []).forEach((row) => {
+        const mapLabel = `MAP${row.map_number + 1}${row.map_name ? ' · ' + row.map_name : ''}`;
+        perMapB[row.checksum] = {
           id: row.checksum,
           winner_name: row.winner_name || null,
-          team_a_name: teamA.name || null,
-          team_b_name: teamB.name || null,
+          team_a_name: row.team_a_name || null,
+          team_b_name: row.team_b_name || null,
           map_name: row.map_name || null,
-          label
+          label: `${row.team_a_name || '?'} vs ${row.team_b_name || '?'} · ${mapLabel}`
         };
       });
+
+      // Build series entries (for BO3 bracket cells)
+      const seriesB = new Map();
+      (mapsRes || []).forEach((row) => {
+        if (!seriesB.has(row.series_id)) seriesB.set(row.series_id, { row, mapChecksums: [] });
+        seriesB.get(row.series_id).mapChecksums.push(row.checksum);
+      });
+      const seriesEntries = [];
+      let seriesIdx = 0;
+      seriesB.forEach(({ row, mapChecksums }) => {
+        const rawTitle = row.series_title != null ? String(row.series_title).trim() : '';
+        const seriesName = rawTitle !== '' && !G5_DEFAULT_B.test(rawTitle) ? rawTitle : null;
+        const label = seriesName ?? `Match ${row.series_id}`;
+        seriesEntries.push({
+          id: row.series_id,
+          winner_name: row.series_winner_name || null,
+          team_a_name: row.team_a_name || null,
+          team_b_name: row.team_b_name || null,
+          map_name: null,
+          label,
+          series_demo_ids: mapChecksums,
+          series_best_of: row.series_max_maps
+        });
+        seriesIdx++;
+      });
+
+      matchesFromDb = [...seriesEntries, ...Object.values(perMapB)];
     } catch (e) {
       console.error('brackets api:', e.message);
     }
@@ -481,6 +512,85 @@ app.post('/api/brackets', requireAdmin, async (req, res) => {
 
   if (!setBracketsData(data)) return res.status(500).json({ error: 'Erreur écriture' });
   res.json({ ok: true, brackets: data });
+});
+
+app.post('/api/brackets/tournaments', requireAdmin, (req, res) => {
+  const { title, type, teamCount } = req.body || {};
+  const titleStr = String(title || '').trim();
+  if (!titleStr) return res.status(400).json({ error: 'Titre requis' });
+
+  const data = getBracketsData();
+  const baseId = titleStr.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'tournament';
+  const id = baseId + '_' + Date.now();
+
+  const { emptyMatch: mkMatch, DEFAULT_SWISS_LAYOUT: SWL } = bracketsModel;
+  let raw;
+  if (type === 'swiss') {
+    const slotCounts = [16, 16, 16, 12, 6];
+    raw = {
+      id, title: titleStr, type: 'swiss',
+      swissRules: { qualifyWins: 3, eliminateLosses: 3 },
+      swissLayout: { ...SWL },
+      rounds: slotCounts.map((n, i) => ({
+        roundIndex: i, title: `Round ${i + 1}`,
+        matches: Array.from({ length: n }, mkMatch)
+      }))
+    };
+  } else {
+    const n = [4, 8, 16].includes(Number(teamCount)) ? Number(teamCount) : 8;
+    let t = n, upperCounts = [];
+    while (t > 1) { upperCounts.push(t / 2); t = Math.floor(t / 2); }
+    raw = {
+      id, title: titleStr, type: 'elimination',
+      rounds: upperCounts.map(c => ({ matches: Array.from({ length: c }, mkMatch) })),
+      ...(type === 'double' ? { lowerRounds: buildDefaultLowerRounds(n) } : {})
+    };
+  }
+
+  const updated = bracketsModel.normalizeV2Payload({ ...data, tournaments: [...data.tournaments, raw] });
+  if (!setBracketsData(updated)) return res.status(500).json({ error: 'Erreur écriture' });
+  res.json(getBracketsData());
+});
+
+function buildDefaultLowerRounds(n) {
+  const { emptyMatch: mkMatch } = bracketsModel;
+  if (n <= 4) return [
+    { matches: Array.from({ length: 2 }, mkMatch) },
+    { matches: Array.from({ length: 1 }, mkMatch) }
+  ];
+  if (n <= 8) return [
+    { matches: Array.from({ length: 4 }, mkMatch) },
+    { matches: Array.from({ length: 4 }, mkMatch) },
+    { matches: Array.from({ length: 2 }, mkMatch) },
+    { matches: Array.from({ length: 2 }, mkMatch) },
+    { matches: Array.from({ length: 1 }, mkMatch) },
+    { matches: Array.from({ length: 1 }, mkMatch) }
+  ];
+  return [
+    { matches: Array.from({ length: 8 }, mkMatch) },
+    { matches: Array.from({ length: 8 }, mkMatch) },
+    { matches: Array.from({ length: 4 }, mkMatch) },
+    { matches: Array.from({ length: 4 }, mkMatch) },
+    { matches: Array.from({ length: 2 }, mkMatch) },
+    { matches: Array.from({ length: 2 }, mkMatch) },
+    { matches: Array.from({ length: 1 }, mkMatch) }
+  ];
+}
+
+app.delete('/api/brackets/tournaments/:id', requireAdmin, (req, res) => {
+  const id = (req.params.id || '').trim();
+  if (!id) return res.status(400).json({ error: 'id requis' });
+  const data = getBracketsData();
+  const filtered = data.tournaments.filter(t => t.id !== id);
+  if (filtered.length === data.tournaments.length) return res.status(404).json({ error: 'Tournoi introuvable' });
+  const payload = { schemaVersion: 2, tournaments: filtered };
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(bracketsPath, JSON.stringify(payload, null, 2), 'utf8');
+  } catch (e) {
+    return res.status(500).json({ error: 'Erreur écriture' });
+  }
+  res.json({ ...payload, teamsFromDb: [], matchesFromDb: [] });
 });
 
 app.get('/api/stats', async (req, res) => {

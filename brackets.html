@@ -21,6 +21,7 @@
       <div class="header-right">
         <div class="brackets-admin">
           <button type="button" class="btn btn-admin" id="btn-admin" aria-pressed="false">Admin Tournoi</button>
+          <button type="button" class="btn btn-new-tournament hidden" id="btn-new-tournament">+ Nouveau tournoi</button>
           <label class="admin-read-mode-switch hidden" id="admin-read-mode-wrap" for="admin-read-mode-toggle">
             <span class="admin-read-mode-label" id="admin-read-mode-caption">Mode écriture</span>
             <input type="checkbox" class="admin-read-mode-checkbox" id="admin-read-mode-toggle" role="switch" aria-labelledby="admin-read-mode-caption">
@@ -175,6 +176,37 @@
   <footer class="footer">
     <div id="footer-common" class="footer-left"></div>
   </footer>
+
+  <div class="modal-overlay hidden" id="new-tournament-overlay">
+    <div class="modal" role="dialog" aria-labelledby="new-tournament-title">
+      <h2 class="modal-title" id="new-tournament-title">Nouveau tournoi</h2>
+      <form class="modal-form" id="new-tournament-form">
+        <label class="modal-label">Nom du tournoi
+          <input type="text" id="new-tournament-name" placeholder="Ex : Swiss Stage, Playoffs…" required autocomplete="off">
+        </label>
+        <fieldset class="edit-match-bo-fieldset">
+          <legend class="modal-label">Type</legend>
+          <label class="edit-match-bo-option"><input type="radio" name="new-tournament-type" value="swiss" checked> Swiss (16 équipes, 5 rondes)</label>
+          <label class="edit-match-bo-option"><input type="radio" name="new-tournament-type" value="elimination"> Élimination simple</label>
+          <label class="edit-match-bo-option"><input type="radio" name="new-tournament-type" value="double"> Élimination double</label>
+        </fieldset>
+        <div id="new-tournament-teamcount-wrap" class="hidden">
+          <label class="modal-label">Nombre d'équipes
+            <select id="new-tournament-teamcount">
+              <option value="4">4</option>
+              <option value="8" selected>8</option>
+              <option value="16">16</option>
+            </select>
+          </label>
+        </div>
+        <p class="login-error hidden" id="new-tournament-error"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="new-tournament-cancel">Annuler</button>
+          <button type="submit" class="btn btn-save">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="common.js"></script>
   <script src="brackets.js"></script>

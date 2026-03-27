@@ -322,6 +322,8 @@ body.brackets-page .swiss-grid::-webkit-scrollbar-corner {
 
 .btn-admin { color: var(--accent); }
 
+.btn-new-tournament { color: var(--green); border-color: var(--green); }
+
 .btn-save {
   background: rgba(76, 175, 80, 0.2);
   border-color: var(--green);
@@ -360,6 +362,25 @@ body.brackets-page .swiss-grid::-webkit-scrollbar-corner {
 }
 
 .tab:hover { color: var(--text); }
+
+.tab-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.4rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+.tab-delete-btn:hover { opacity: 1; color: #e53935; background: rgba(229,57,53,0.12); }
 
 .tab[aria-selected="true"] {
   color: var(--accent);
