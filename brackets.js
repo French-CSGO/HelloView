@@ -190,6 +190,10 @@
       m = t.grandFinale.matches[matchIndex];
     } else if (lane === 'lower') {
       m = t.lowerRounds && t.lowerRounds[roundIndex] && t.lowerRounds[roundIndex].matches[matchIndex];
+    } else if (lane.startsWith('groups:')) {
+      const groupId = lane.slice('groups:'.length);
+      const grp = (t.groups || []).find((g) => g.id === groupId);
+      m = grp && grp.rounds && grp.rounds[roundIndex] && grp.rounds[roundIndex].matches[matchIndex];
     } else {
       m = t.upperRounds && t.upperRounds[roundIndex] && t.upperRounds[roundIndex].matches[matchIndex];
     }
@@ -555,31 +559,45 @@
     if (arrows.length) arrows[arrows.length - 1].remove();
   }
 
-  function renderGroups(panelEl, tournament) {
-    const d = safeDomId(tournament.id);
-    const standingsWrap = panelEl.querySelector('#groups-standings-' + d);
-    const roundsWrap = panelEl.querySelector('#groups-rounds-' + d);
-    if (!standingsWrap || !roundsWrap) return;
-
-    // Compute standings from match results
-    const pts = {}; // teamName -> { w, l }
-    (tournament.rounds || []).forEach((r) => {
+  function renderOneGroup(container, group, tournamentId) {
+    // Compute standings
+    const rec = {};
+    (group.rounds || []).forEach((r) => {
       (r.matches || []).forEach((m) => {
         const a = (m.teamA || '').trim();
         const b = (m.teamB || '').trim();
         const w = (m.winner || '').trim();
-        if (a && !pts[a]) pts[a] = { w: 0, l: 0 };
-        if (b && !pts[b]) pts[b] = { w: 0, l: 0 };
-        if (w && a && b) {
-          if (normName(w) === normName(a)) { pts[a].w++; pts[b].l++; }
-          else if (normName(w) === normName(b)) { pts[b].w++; pts[a].l++; }
+        if (a && !rec[a]) rec[a] = { w: 0, l: 0, e: 0 };
+        if (b && !rec[b]) rec[b] = { w: 0, l: 0, e: 0 };
+        if (!a || !b) return;
+        if (!w) {
+          if (getMatchDemoIds(m).length) { rec[a].e++; rec[b].e++; }
+        } else if (normName(w) === normName(a)) {
+          rec[a].w++; rec[b].l++;
+        } else if (normName(w) === normName(b)) {
+          rec[b].w++; rec[a].l++;
         }
       });
     });
-    const teams = Object.entries(pts).sort(([, a], [, b]) => b.w - a.w || a.l - b.l);
+    const teams = Object.entries(rec).sort(([, a], [, b]) =>
+      b.w - a.w || b.e - a.e || a.l - b.l
+    );
+
+    const card = document.createElement('div');
+    card.className = 'groups-card';
+
+    // Group title
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'groups-card-title';
+    titleEl.textContent = group.title || '';
+    card.appendChild(titleEl);
 
     // Standings table
-    standingsWrap.innerHTML = '';
+    const standingsTitle = document.createElement('div');
+    standingsTitle.className = 'groups-section-title';
+    standingsTitle.textContent = 'Classement';
+    card.appendChild(standingsTitle);
+
     if (teams.length) {
       const table = document.createElement('table');
       table.className = 'groups-standings';
@@ -587,7 +605,9 @@
         '<thead><tr>' +
         '<th class="groups-rank">#</th>' +
         '<th class="groups-team-col">Équipe</th>' +
-        '<th>V</th><th>D</th>' +
+        '<th title="Victoires">V</th>' +
+        '<th title="Défaites">D</th>' +
+        '<th title="Égalités">É</th>' +
         '</tr></thead>';
       const tbody = document.createElement('tbody');
       teams.forEach(([name, s], i) => {
@@ -596,43 +616,82 @@
           '<td class="groups-rank">' + (i + 1) + '</td>' +
           '<td class="groups-team-col">' + escapeHtml(name) + '</td>' +
           '<td class="groups-wins">' + s.w + '</td>' +
-          '<td class="groups-losses">' + s.l + '</td>';
+          '<td class="groups-losses">' + s.l + '</td>' +
+          '<td class="groups-draws">' + s.e + '</td>';
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      standingsWrap.appendChild(table);
+      card.appendChild(table);
     }
 
     // Rounds
-    roundsWrap.innerHTML = '';
-    (tournament.rounds || []).forEach((round, ri) => {
+    const roundsTitle = document.createElement('div');
+    roundsTitle.className = 'groups-section-title';
+    roundsTitle.style.marginTop = '1rem';
+    roundsTitle.textContent = 'Matchs';
+    card.appendChild(roundsTitle);
+
+    const roundsGrid = document.createElement('div');
+    roundsGrid.className = 'groups-rounds-grid';
+    card.appendChild(roundsGrid);
+
+    (group.rounds || []).forEach((round, ri) => {
       const col = document.createElement('div');
       col.className = 'groups-round';
       const title = (round.title != null && String(round.title).trim() !== '') ? String(round.title).trim() : ('Round ' + (ri + 1));
-      col.innerHTML = '<h3 class="groups-round-title">' + escapeHtml(title) + '</h3><div class="groups-round-matches"></div>';
-      const matchContainer = col.querySelector('.groups-round-matches');
+      const roundTitle = document.createElement('div');
+      roundTitle.className = 'groups-round-title';
+      roundTitle.textContent = title;
+      col.appendChild(roundTitle);
+
+      const table = document.createElement('table');
+      table.className = 'groups-match-table';
+      const tbody = document.createElement('tbody');
+
       (round.matches || []).forEach((m, mi) => {
-        const [winner, loser] = getWinnerLoser(m);
-        const cell = document.createElement('div');
-        cell.className = 'match-cell' + (canEditBrackets() ? ' admin' : '');
-        cell.dataset.tournamentId = tournament.id;
-        cell.dataset.lane = 'groups';
-        cell.dataset.roundIndex = String(ri);
-        cell.dataset.matchIndex = String(mi);
+        const a = (m.teamA || '').trim();
+        const b = (m.teamB || '').trim();
+        const w = (m.winner || '').trim();
+        const aWon = w && normName(w) === normName(a);
+        const bWon = w && normName(w) === normName(b);
         const serS = formatSeriesScoreShort(m);
-        cell.innerHTML =
-          '<span class="match-winner">' + escapeHtml(winner) + '</span>' +
-          '<span class="match-loser">' + escapeHtml(loser) + '</span>' +
-          (serS ? '<span class="bracket-match-series">' + escapeHtml(serS) + '</span>' : '');
+
+        const tr = document.createElement('tr');
+        tr.className = 'groups-match-row' + (canEditBrackets() ? ' admin' : ' clickable');
+        tr.dataset.tournamentId = tournamentId;
+        tr.dataset.groupId = group.id || '';
+        const groupLane = 'groups:' + (group.id || '');
+        tr.dataset.lane = groupLane;
+        tr.dataset.roundIndex = String(ri);
+        tr.dataset.matchIndex = String(mi);
+        tr.innerHTML =
+          '<td class="gm-team gm-team-a' + (aWon ? ' gm-winner' : (bWon ? ' gm-loser' : '')) + '">' + escapeHtml(a || '—') + '</td>' +
+          '<td class="gm-vs">' + (serS ? escapeHtml(serS) : 'vs') + '</td>' +
+          '<td class="gm-team gm-team-b' + (bWon ? ' gm-winner' : (aWon ? ' gm-loser' : '')) + '">' + escapeHtml(b || '—') + '</td>';
+
         if (canEditBrackets()) {
-          cell.addEventListener('click', () => openEditModal(tournament.id, 'groups', ri, mi));
+          tr.addEventListener('click', () => openEditModal(tournamentId, groupLane, ri, mi));
         } else {
-          cell.classList.add('clickable');
-          cell.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournament.id, 'groups', ri, mi));
+          tr.addEventListener('click', () => openMatchOverlayFromBracketsCell(tournamentId, groupLane, ri, mi));
         }
-        matchContainer.appendChild(cell);
+        tbody.appendChild(tr);
       });
-      roundsWrap.appendChild(col);
+
+      table.appendChild(tbody);
+      col.appendChild(table);
+      roundsGrid.appendChild(col);
+    });
+
+    container.appendChild(card);
+  }
+
+  function renderGroups(panelEl, tournament) {
+    const d = safeDomId(tournament.id);
+    const wrap = panelEl.querySelector('#groups-all-' + d);
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    (tournament.groups || []).forEach((group) => {
+      renderOneGroup(wrap, group, tournament.id);
     });
   }
 
@@ -1006,10 +1065,7 @@
         section.dataset.tournamentId = t.id;
         section.innerHTML =
           '<p class="brackets-desc">' + escapeHtml(t.description || '') + '</p>' +
-          '<div class="groups-wrap">' +
-          '<div class="groups-standings-wrap" id="groups-standings-' + d + '"></div>' +
-          '<div class="groups-rounds" id="groups-rounds-' + d + '"></div>' +
-          '</div>';
+          '<div class="groups-all" id="groups-all-' + d + '"></div>';
         panelsRoot.appendChild(section);
       } else {
         const section = document.createElement('section');
@@ -1225,6 +1281,10 @@
       m = t.grandFinale.matches[matchIndex];
     } else if (lane === 'lower') {
       m = t.lowerRounds && t.lowerRounds[roundIndex] && t.lowerRounds[roundIndex].matches[matchIndex];
+    } else if (lane.startsWith('groups:')) {
+      const groupId = lane.slice('groups:'.length);
+      const grp = (t.groups || []).find((g) => g.id === groupId);
+      m = grp && grp.rounds && grp.rounds[roundIndex] && grp.rounds[roundIndex].matches[matchIndex];
     } else {
       m = t.upperRounds && t.upperRounds[roundIndex] && t.upperRounds[roundIndex].matches[matchIndex];
     }

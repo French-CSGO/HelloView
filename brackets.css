@@ -487,89 +487,164 @@ body.brackets-page .footer {
 
 /* ── Groups (Round Robin) ──────────────────────────────────────────────────── */
 
+.groups-all {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  gap: 2rem;
+  padding: 1.5rem var(--brackets-pad-inline);
+}
+
+.groups-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.groups-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--accent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .groups-wrap {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 2rem;
   padding: 1.5rem 0;
-  overflow-x: auto;
 }
 
-.groups-standings-wrap {
-  flex-shrink: 0;
+.groups-section-title {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--accent);
+  display: inline-block;
 }
 
+/* Standings */
 .groups-standings {
   border-collapse: collapse;
   font-size: 0.9rem;
-  min-width: 200px;
-}
-
-.groups-standings thead tr {
-  border-bottom: 2px solid var(--accent);
+  min-width: 240px;
 }
 
 .groups-standings th {
   font-family: var(--font-heading);
   font-weight: 700;
-  color: var(--accent);
-  padding: 0.4rem 0.75rem;
+  color: var(--muted);
+  padding: 0.35rem 0.75rem;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
 }
 
 .groups-standings th.groups-team-col,
 .groups-standings td.groups-team-col {
   text-align: left;
+  padding-left: 0;
 }
 
 .groups-standings td {
-  padding: 0.4rem 0.75rem;
+  padding: 0.45rem 0.75rem;
   text-align: center;
   border-bottom: 1px solid var(--border);
   color: var(--fg);
+  font-size: 0.9rem;
 }
 
-.groups-standings tbody tr:hover {
-  background: var(--card-bg);
-}
+.groups-standings tbody tr:hover { background: var(--card-bg); }
 
 .groups-rank {
   color: var(--muted) !important;
   font-size: 0.78rem;
-  width: 1.5rem;
+  width: 1.8rem;
+  padding-left: 0 !important;
 }
 
-.groups-wins { color: var(--green, #4caf50) !important; font-weight: 700; }
-.groups-losses { color: var(--red, #f44336) !important; }
+.groups-wins   { color: var(--green, #4caf50) !important; font-weight: 700; }
+.groups-losses { color: var(--red,   #f44336) !important; }
+.groups-draws  { color: var(--muted) !important; }
 
-.groups-rounds {
+/* Rounds grid */
+.groups-rounds-wrap { }
+
+.groups-rounds-grid {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   align-items: flex-start;
-  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
 }
 
 .groups-round {
   flex-shrink: 0;
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .groups-round-title {
   font-family: var(--font-heading);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--accent);
   margin: 0 0 0.5rem;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.2rem;
   border-bottom: 1px solid var(--border);
 }
 
-.groups-round-matches {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+/* Match table inside a round */
+.groups-match-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.groups-match-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.groups-match-row:hover { background: var(--card-bg); }
+.groups-match-row.admin { cursor: pointer; }
+
+.gm-team {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.88rem;
+  color: var(--fg);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-team-a { text-align: right; }
+.gm-team-b { text-align: left; }
+
+.gm-winner { color: var(--green, #4caf50) !important; font-weight: 700; }
+.gm-loser  { color: var(--muted) !important; }
+
+.gm-vs {
+  padding: 0.4rem 0.4rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  font-weight: 600;
 }
 
 /* Swiss grid — colonnes centrées par rapport à une ligne horizontale centrale */
