@@ -21,10 +21,28 @@ const PORT = process.env.PORT || 3000;
 
 const BRACKETS_ADMIN_PASSWORD = process.env.BRACKETS_ADMIN_PASSWORD || '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const G5API_URL = (process.env.G5API_URL || '').replace(/\/$/, '');
 const adminTokens = new Set();
 const adminPanelTokens = new Set();
 const dataDir = path.join(__dirname, 'data');
 const demoHostDir = path.join(dataDir, 'demo');
+
+/**
+ * Construit l'URL de téléchargement d'une démo depuis G5API si G5API_URL est défini,
+ * sinon tente la résolution locale dans data/demo/.
+ * @param {import('./lib/demo-host-files')} demoIdx index local (peut être null si G5API_URL est défini)
+ * @param {string|null} demoFile valeur de ms.demoFile (basename, ex. "match_12.zip")
+ * @returns {{ url: string, filename: string } | null}
+ */
+function resolveDemoDownload(demoIdx, demoFile) {
+  if (!demoFile) return null;
+  const filename = String(demoFile).trim().split(/[/\\]/).pop();
+  if (!filename) return null;
+  if (G5API_URL) {
+    return { url: `${G5API_URL}/api/demo/${encodeURIComponent(filename)}`, filename };
+  }
+  return demoHostFiles.demoDownloadForDbPath(demoIdx, demoFile);
+}
 const bracketsPath = path.join(dataDir, 'brackets.json');
 const uploadsDir = path.join(__dirname, 'uploads');
 const avatarsDir = path.join(uploadsDir, 'avatars');
@@ -600,7 +618,7 @@ app.get('/api/stats', async (req, res) => {
     const seasonWhere = SEASON_ID ? 'AND m.season_id = ?' : '';
     const seasonParams = SEASON_ID ? [SEASON_ID] : [];
     const G5_DEFAULT = /^Map \{MAPNUMBER\} of \{MAXMAPS\}$/i;
-    const demoIdx = demoHostFiles.getDemoBasenameIndex(demoHostDir);
+    const demoIdx = G5API_URL ? null : demoHostFiles.getDemoBasenameIndex(demoHostDir);
 
     const [[mapRows], [playerRows]] = await Promise.all([
       pool.query(`
@@ -682,7 +700,7 @@ app.get('/api/stats', async (req, res) => {
         team_b_name: row.team_b_name,
         team_b_score: row.team_b_score,
       };
-      const dl = demoHostFiles.demoDownloadForDbPath(demoIdx, row.demo_path);
+      const dl = resolveDemoDownload(demoIdx, row.demo_path);
       if (dl) { m.demo_download_url = dl.url; m.demo_download_filename = dl.filename; }
       perMapEntries[row.checksum] = m;
     });
@@ -889,8 +907,8 @@ app.get('/api/match/:checksum', async (req, res) => {
       team_b_name: teamB.name,
       team_b_score: teamB.score,
     };
-    const demoIdxOne = demoHostFiles.getDemoBasenameIndex(demoHostDir);
-    const dlOne = demoHostFiles.demoDownloadForDbPath(demoIdxOne, matchRow.demo_path);
+    const demoIdxOne = G5API_URL ? null : demoHostFiles.getDemoBasenameIndex(demoHostDir);
+    const dlOne = resolveDemoDownload(demoIdxOne, matchRow.demo_path);
     if (dlOne) {
       match.demo_download_url = dlOne.url;
       match.demo_download_filename = dlOne.filename;
