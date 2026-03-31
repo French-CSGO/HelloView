@@ -1390,6 +1390,11 @@
       }
     }
     $('edit-demoId').value = first;
+    if (!first) {
+      $('edit-teamA').value = '';
+      $('edit-teamB').value = '';
+      $('edit-winnerValue').value = '';
+    }
   }
 
   function updateEditSeriesHint() {
