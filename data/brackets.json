@@ -398,9 +398,9 @@
       ]
     },
     {
-      "id": "playoffs",
-      "title": "Playoffs — Double Élimination",
-      "description": "Double élimination · 16 équipes · Upper + Lower + Grande Finale",
+      "id": "playoffs_12",
+      "title": "Playoffs — Double Élimination · 12 équipes",
+      "description": "Double élimination · 12 équipes · 4 qualifications + Upper/Lower + Grande Finale",
       "type": "elimination",
       "drawBracketLinks": true,
       "lowerBracketLabel": "Lower Bracket",
@@ -408,13 +408,13 @@
       "eliminationLayout": {
         "upper": {
           "matchCounts": [
-            8,
+            4,
             4,
             2,
             1
           ],
           "titles": [
-            "Huitièmes",
+            "Qualifications",
             "Quarts de finale",
             "Demi-finales",
             "Finale Upper"
@@ -422,7 +422,6 @@
         },
         "lower": {
           "matchCounts": [
-            4,
             4,
             2,
             2,
@@ -433,8 +432,7 @@
             "LB Round 1",
             "LB Round 2",
             "LB Round 3",
-            "LB Round 4",
-            "LB Round 5",
+            "LB Demi-finale",
             "LB Finale"
           ]
         },
@@ -446,11 +444,11 @@
       "upperRounds": [
         {
           "roundIndex": 0,
-          "title": "Huitièmes",
+          "title": "Qualifications",
           "matches": [
             {
-              "teamA": "",
-              "teamB": "",
+              "teamA": "Seed 8",
+              "teamB": "Seed 9",
               "winner": null,
               "demoId": null,
               "demoIds": [],
@@ -467,26 +465,8 @@
               }
             },
             {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [],
-                "out": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
+              "teamA": "Seed 5",
+              "teamB": "Seed 12",
               "winner": null,
               "demoId": null,
               "demoIds": [],
@@ -503,26 +483,8 @@
               }
             },
             {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [],
-                "out": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 1
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
+              "teamA": "Seed 7",
+              "teamB": "Seed 10",
               "winner": null,
               "demoId": null,
               "demoIds": [],
@@ -539,44 +501,8 @@
               }
             },
             {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [],
-                "out": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 2
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [],
-                "out": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 3
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
+              "teamA": "Seed 6",
+              "teamB": "Seed 11",
               "winner": null,
               "demoId": null,
               "demoIds": [],
@@ -599,7 +525,7 @@
           "title": "Quarts de finale",
           "matches": [
             {
-              "teamA": "",
+              "teamA": "Seed 1",
               "teamB": "",
               "winner": null,
               "demoId": null,
@@ -611,7 +537,26 @@
                     "lane": "upper",
                     "roundIndex": 0,
                     "matchIndex": 0
-                  },
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "Seed 4",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 1,
+              "links": {
+                "in": [
                   {
                     "lane": "upper",
                     "roundIndex": 0,
@@ -628,7 +573,7 @@
               }
             },
             {
-              "teamA": "",
+              "teamA": "Seed 2",
               "teamB": "",
               "winner": null,
               "demoId": null,
@@ -640,40 +585,6 @@
                     "lane": "upper",
                     "roundIndex": 0,
                     "matchIndex": 2
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 3
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 2,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 4
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 5
                   }
                 ],
                 "out": [
@@ -686,7 +597,7 @@
               }
             },
             {
-              "teamA": "",
+              "teamA": "Seed 3",
               "teamB": "",
               "winner": null,
               "demoId": null,
@@ -697,12 +608,7 @@
                   {
                     "lane": "upper",
                     "roundIndex": 0,
-                    "matchIndex": 6
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 7
+                    "matchIndex": 3
                   }
                 ],
                 "out": [
@@ -832,37 +738,8 @@
                 "in": [
                   {
                     "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 0
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 1
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "lower",
                     "roundIndex": 1,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 2
+                    "matchIndex": 1
                   },
                   {
                     "lane": "upper",
@@ -874,6 +751,64 @@
                   {
                     "lane": "lower",
                     "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 1,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 2
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 1,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 3
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
                     "matchIndex": 1
                   }
                 ]
@@ -890,49 +825,20 @@
                 "in": [
                   {
                     "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 4
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 5
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "lower",
                     "roundIndex": 1,
                     "matchIndex": 2
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [
-                  {
-                    "lane": "upper",
-                    "roundIndex": 0,
-                    "matchIndex": 6
                   },
                   {
                     "lane": "upper",
                     "roundIndex": 0,
-                    "matchIndex": 7
+                    "matchIndex": 0
                   }
                 ],
                 "out": [
                   {
                     "lane": "lower",
                     "roundIndex": 1,
-                    "matchIndex": 3
+                    "matchIndex": 1
                   }
                 ]
               }
@@ -958,37 +864,8 @@
                     "matchIndex": 0
                   },
                   {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 0
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "lower",
-                    "roundIndex": 2,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [
-                  {
                     "lane": "lower",
                     "roundIndex": 0,
-                    "matchIndex": 1
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
                     "matchIndex": 1
                   }
                 ],
@@ -1016,37 +893,8 @@
                     "matchIndex": 2
                   },
                   {
-                    "lane": "upper",
-                    "roundIndex": 1,
-                    "matchIndex": 2
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "lower",
-                    "roundIndex": 2,
-                    "matchIndex": 1
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 1,
-              "links": {
-                "in": [
-                  {
                     "lane": "lower",
                     "roundIndex": 0,
-                    "matchIndex": 3
-                  },
-                  {
-                    "lane": "upper",
-                    "roundIndex": 1,
                     "matchIndex": 3
                   }
                 ],
@@ -1071,7 +919,7 @@
               "winner": null,
               "demoId": null,
               "demoIds": [],
-              "bestOf": 1,
+              "bestOf": 3,
               "links": {
                 "in": [
                   {
@@ -1080,9 +928,9 @@
                     "matchIndex": 0
                   },
                   {
-                    "lane": "lower",
-                    "roundIndex": 1,
-                    "matchIndex": 1
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
                   }
                 ],
                 "out": [
@@ -1100,25 +948,25 @@
               "winner": null,
               "demoId": null,
               "demoIds": [],
-              "bestOf": 1,
+              "bestOf": 3,
               "links": {
                 "in": [
                   {
                     "lane": "lower",
                     "roundIndex": 1,
-                    "matchIndex": 2
+                    "matchIndex": 1
                   },
                   {
-                    "lane": "lower",
-                    "roundIndex": 1,
-                    "matchIndex": 3
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 1
                   }
                 ],
                 "out": [
                   {
                     "lane": "lower",
                     "roundIndex": 3,
-                    "matchIndex": 1
+                    "matchIndex": 0
                   }
                 ]
               }
@@ -1127,7 +975,7 @@
         },
         {
           "roundIndex": 3,
-          "title": "LB Round 4",
+          "title": "LB Demi-finale",
           "matches": [
             {
               "teamA": "",
@@ -1144,36 +992,7 @@
                     "matchIndex": 0
                   },
                   {
-                    "lane": "upper",
-                    "roundIndex": 2,
-                    "matchIndex": 0
-                  }
-                ],
-                "out": [
-                  {
                     "lane": "lower",
-                    "roundIndex": 4,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            },
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 3,
-              "links": {
-                "in": [
-                  {
-                    "lane": "lower",
-                    "roundIndex": 2,
-                    "matchIndex": 1
-                  },
-                  {
-                    "lane": "upper",
                     "roundIndex": 2,
                     "matchIndex": 1
                   }
@@ -1191,41 +1010,6 @@
         },
         {
           "roundIndex": 4,
-          "title": "LB Round 5",
-          "matches": [
-            {
-              "teamA": "",
-              "teamB": "",
-              "winner": null,
-              "demoId": null,
-              "demoIds": [],
-              "bestOf": 3,
-              "links": {
-                "in": [
-                  {
-                    "lane": "lower",
-                    "roundIndex": 3,
-                    "matchIndex": 0
-                  },
-                  {
-                    "lane": "lower",
-                    "roundIndex": 3,
-                    "matchIndex": 1
-                  }
-                ],
-                "out": [
-                  {
-                    "lane": "lower",
-                    "roundIndex": 5,
-                    "matchIndex": 0
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "roundIndex": 5,
           "title": "LB Finale",
           "matches": [
             {
@@ -1239,7 +1023,7 @@
                 "in": [
                   {
                     "lane": "lower",
-                    "roundIndex": 4,
+                    "roundIndex": 3,
                     "matchIndex": 0
                   },
                   {
@@ -1279,7 +1063,7 @@
                 },
                 {
                   "lane": "lower",
-                  "roundIndex": 5,
+                  "roundIndex": 4,
                   "matchIndex": 0
                 }
               ],
@@ -1290,21 +1074,491 @@
       }
     },
     {
-      "id": "playoffs_12",
-      "title": "Playoffs — Double Élimination · 12 équipes",
-      "description": "Double élimination · 12 équipes · 4 qualifications + Upper/Lower + Grande Finale",
+      "id": "poules_2025",
+      "title": "Phase de Poules",
+      "description": "Bo1 · 3 poules de 4 équipes + 1 poule de 5 équipes — Seeds 1 & 2 → Elite · Seeds 3 & 4 → Amateur · Seed 5 (Groupe D) → éliminé",
+      "type": "groups",
+      "groups": [
+        {
+          "id": "group_a",
+          "title": "Groupe A",
+          "rounds": [
+            {
+              "roundIndex": 0,
+              "title": "Round 1",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 1,
+              "title": "Round 2",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 2,
+              "title": "Round 3",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "group_b",
+          "title": "Groupe B",
+          "rounds": [
+            {
+              "roundIndex": 0,
+              "title": "Round 1",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 1,
+              "title": "Round 2",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 2,
+              "title": "Round 3",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "group_c",
+          "title": "Groupe C",
+          "rounds": [
+            {
+              "roundIndex": 0,
+              "title": "Round 1",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 1,
+              "title": "Round 2",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 2,
+              "title": "Round 3",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "group_d",
+          "title": "Groupe D (5 équipes)",
+          "rounds": [
+            {
+              "roundIndex": 0,
+              "title": "Round 1",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 1,
+              "title": "Round 2",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 2,
+              "title": "Round 3",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 3,
+              "title": "Round 4",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            },
+            {
+              "roundIndex": 4,
+              "title": "Round 5",
+              "matches": [
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                },
+                {
+                  "teamA": "",
+                  "teamB": "",
+                  "winner": null,
+                  "demoId": null,
+                  "demoIds": [],
+                  "bestOf": 1,
+                  "links": {
+                    "in": [],
+                    "out": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amateur",
+      "title": "Arbre Amateur",
+      "description": "Double Élimination Bo3 · 8 équipes · Seeds 3 & 4 des 4 poules",
       "type": "elimination",
       "drawBracketLinks": true,
       "lowerBracketLabel": "Lower Bracket",
       "upperBracketLabel": "Upper Bracket",
       "eliminationLayout": {
         "upper": {
-          "matchCounts": [4, 4, 2, 1],
-          "titles": ["Qualifications", "Quarts de finale", "Demi-finales", "Finale Upper"]
+          "matchCounts": [
+            4,
+            2,
+            1
+          ],
+          "titles": [
+            "Quarts de finale",
+            "Demi-finales",
+            "Finale Upper"
+          ]
         },
         "lower": {
-          "matchCounts": [4, 2, 2, 1, 1],
-          "titles": ["LB Round 1", "LB Round 2", "LB Round 3", "LB Demi-finale", "LB Finale"]
+          "matchCounts": [
+            2,
+            2,
+            1,
+            1
+          ],
+          "titles": [
+            "LB Round 1",
+            "LB Round 2",
+            "LB Demi-finale",
+            "LB Finale"
+          ]
         },
         "grandFinale": {
           "matchCount": 1,
@@ -1314,98 +1568,177 @@
       "upperRounds": [
         {
           "roundIndex": 0,
-          "title": "Qualifications",
+          "title": "Quarts de finale",
           "matches": [
             {
-              "teamA": "Seed 8", "teamB": "Seed 9", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": { "in": [], "out": [{"lane":"upper","roundIndex":1,"matchIndex":0}] }
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
             },
             {
-              "teamA": "Seed 5", "teamB": "Seed 12", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": { "in": [], "out": [{"lane":"upper","roundIndex":1,"matchIndex":1}] }
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
             },
             {
-              "teamA": "Seed 7", "teamB": "Seed 10", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": { "in": [], "out": [{"lane":"upper","roundIndex":1,"matchIndex":2}] }
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
+              }
             },
             {
-              "teamA": "Seed 6", "teamB": "Seed 11", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": { "in": [], "out": [{"lane":"upper","roundIndex":1,"matchIndex":3}] }
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
+              }
             }
           ]
         },
         {
           "roundIndex": 1,
-          "title": "Quarts de finale",
+          "title": "Demi-finales",
           "matches": [
             {
-              "teamA": "Seed 1", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
-                "in": [{"lane":"upper","roundIndex":0,"matchIndex":0}],
-                "out": [{"lane":"upper","roundIndex":2,"matchIndex":0}]
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
               }
             },
             {
-              "teamA": "Seed 4", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
-                "in": [{"lane":"upper","roundIndex":0,"matchIndex":1}],
-                "out": [{"lane":"upper","roundIndex":2,"matchIndex":0}]
-              }
-            },
-            {
-              "teamA": "Seed 2", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": {
-                "in": [{"lane":"upper","roundIndex":0,"matchIndex":2}],
-                "out": [{"lane":"upper","roundIndex":2,"matchIndex":1}]
-              }
-            },
-            {
-              "teamA": "Seed 3", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": {
-                "in": [{"lane":"upper","roundIndex":0,"matchIndex":3}],
-                "out": [{"lane":"upper","roundIndex":2,"matchIndex":1}]
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 2
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 3
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
               }
             }
           ]
         },
         {
           "roundIndex": 2,
-          "title": "Demi-finales",
-          "matches": [
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
-              "links": {
-                "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":0},
-                  {"lane":"upper","roundIndex":1,"matchIndex":1}
-                ],
-                "out": [{"lane":"upper","roundIndex":3,"matchIndex":0}]
-              }
-            },
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
-              "links": {
-                "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":2},
-                  {"lane":"upper","roundIndex":1,"matchIndex":3}
-                ],
-                "out": [{"lane":"upper","roundIndex":3,"matchIndex":0}]
-              }
-            }
-          ]
-        },
-        {
-          "roundIndex": 3,
           "title": "Finale Upper",
           "matches": [
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"upper","roundIndex":2,"matchIndex":0},
-                  {"lane":"upper","roundIndex":2,"matchIndex":1}
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
                 ],
-                "out": [{"lane":"grand","roundIndex":0,"matchIndex":0}]
+                "out": [
+                  {
+                    "lane": "grand",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  }
+                ]
               }
             }
           ]
@@ -1417,43 +1750,61 @@
           "title": "LB Round 1",
           "matches": [
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":1},
-                  {"lane":"upper","roundIndex":0,"matchIndex":3}
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  }
                 ],
-                "out": [{"lane":"lower","roundIndex":1,"matchIndex":0}]
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
               }
             },
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":0},
-                  {"lane":"upper","roundIndex":0,"matchIndex":2}
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 2
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 3
+                  }
                 ],
-                "out": [{"lane":"lower","roundIndex":1,"matchIndex":0}]
-              }
-            },
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": {
-                "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":3},
-                  {"lane":"upper","roundIndex":0,"matchIndex":1}
-                ],
-                "out": [{"lane":"lower","roundIndex":1,"matchIndex":1}]
-              }
-            },
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
-              "links": {
-                "in": [
-                  {"lane":"upper","roundIndex":1,"matchIndex":2},
-                  {"lane":"upper","roundIndex":0,"matchIndex":0}
-                ],
-                "out": [{"lane":"lower","roundIndex":1,"matchIndex":1}]
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
               }
             }
           ]
@@ -1463,81 +1814,131 @@
           "title": "LB Round 2",
           "matches": [
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"lower","roundIndex":0,"matchIndex":0},
-                  {"lane":"lower","roundIndex":0,"matchIndex":1}
+                  {
+                    "lane": "lower",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
                 ],
-                "out": [{"lane":"lower","roundIndex":2,"matchIndex":0}]
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
               }
             },
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 1,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"lower","roundIndex":0,"matchIndex":2},
-                  {"lane":"lower","roundIndex":0,"matchIndex":3}
+                  {
+                    "lane": "lower",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
                 ],
-                "out": [{"lane":"lower","roundIndex":2,"matchIndex":1}]
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
               }
             }
           ]
         },
         {
           "roundIndex": 2,
-          "title": "LB Round 3",
+          "title": "LB Demi-finale",
           "matches": [
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"lower","roundIndex":1,"matchIndex":0},
-                  {"lane":"upper","roundIndex":2,"matchIndex":0}
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
                 ],
-                "out": [{"lane":"lower","roundIndex":3,"matchIndex":0}]
-              }
-            },
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
-              "links": {
-                "in": [
-                  {"lane":"lower","roundIndex":1,"matchIndex":1},
-                  {"lane":"upper","roundIndex":2,"matchIndex":1}
-                ],
-                "out": [{"lane":"lower","roundIndex":3,"matchIndex":0}]
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 3,
+                    "matchIndex": 0
+                  }
+                ]
               }
             }
           ]
         },
         {
           "roundIndex": 3,
-          "title": "LB Demi-finale",
-          "matches": [
-            {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
-              "links": {
-                "in": [
-                  {"lane":"lower","roundIndex":2,"matchIndex":0},
-                  {"lane":"lower","roundIndex":2,"matchIndex":1}
-                ],
-                "out": [{"lane":"lower","roundIndex":4,"matchIndex":0}]
-              }
-            }
-          ]
-        },
-        {
-          "roundIndex": 4,
           "title": "LB Finale",
           "matches": [
             {
-              "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
               "links": {
                 "in": [
-                  {"lane":"lower","roundIndex":3,"matchIndex":0},
-                  {"lane":"upper","roundIndex":3,"matchIndex":0}
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
                 ],
-                "out": [{"lane":"grand","roundIndex":0,"matchIndex":0}]
+                "out": [
+                  {
+                    "lane": "grand",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  }
+                ]
               }
             }
           ]
@@ -1547,11 +1948,472 @@
         "title": "Grande Finale",
         "matches": [
           {
-            "teamA": "", "teamB": "", "winner": null, "demoId": null, "demoIds": [], "bestOf": 3,
+            "teamA": "",
+            "teamB": "",
+            "winner": null,
+            "demoId": null,
+            "demoIds": [],
+            "bestOf": 3,
             "links": {
               "in": [
-                {"lane":"upper","roundIndex":3,"matchIndex":0},
-                {"lane":"lower","roundIndex":4,"matchIndex":0}
+                {
+                  "lane": "upper",
+                  "roundIndex": 2,
+                  "matchIndex": 0
+                },
+                {
+                  "lane": "lower",
+                  "roundIndex": 3,
+                  "matchIndex": 0
+                }
+              ],
+              "out": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "elite",
+      "title": "Arbre Elite",
+      "description": "Double Élimination Bo3 · 8 équipes · Seeds 1 & 2 des 4 poules",
+      "type": "elimination",
+      "drawBracketLinks": true,
+      "lowerBracketLabel": "Lower Bracket",
+      "upperBracketLabel": "Upper Bracket",
+      "eliminationLayout": {
+        "upper": {
+          "matchCounts": [
+            4,
+            2,
+            1
+          ],
+          "titles": [
+            "Quarts de finale",
+            "Demi-finales",
+            "Finale Upper"
+          ]
+        },
+        "lower": {
+          "matchCounts": [
+            2,
+            2,
+            1,
+            1
+          ],
+          "titles": [
+            "LB Round 1",
+            "LB Round 2",
+            "LB Demi-finale",
+            "LB Finale"
+          ]
+        },
+        "grandFinale": {
+          "matchCount": 1,
+          "title": "Grande Finale"
+        }
+      },
+      "upperRounds": [
+        {
+          "roundIndex": 0,
+          "title": "Quarts de finale",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "roundIndex": 1,
+          "title": "Demi-finales",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 2
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 3
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "roundIndex": 2,
+          "title": "Finale Upper",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "grand",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "lowerRounds": [
+        {
+          "roundIndex": 0,
+          "title": "LB Round 1",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 2
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 0,
+                    "matchIndex": 3
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "roundIndex": 1,
+          "title": "LB Round 2",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            },
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 0,
+                    "matchIndex": 1
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "roundIndex": 2,
+          "title": "LB Demi-finale",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "lower",
+                    "roundIndex": 1,
+                    "matchIndex": 1
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 3,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "roundIndex": 3,
+          "title": "LB Finale",
+          "matches": [
+            {
+              "teamA": "",
+              "teamB": "",
+              "winner": null,
+              "demoId": null,
+              "demoIds": [],
+              "bestOf": 3,
+              "links": {
+                "in": [
+                  {
+                    "lane": "lower",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  },
+                  {
+                    "lane": "upper",
+                    "roundIndex": 2,
+                    "matchIndex": 0
+                  }
+                ],
+                "out": [
+                  {
+                    "lane": "grand",
+                    "roundIndex": 0,
+                    "matchIndex": 0
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "grandFinale": {
+        "title": "Grande Finale",
+        "matches": [
+          {
+            "teamA": "",
+            "teamB": "",
+            "winner": null,
+            "demoId": null,
+            "demoIds": [],
+            "bestOf": 3,
+            "links": {
+              "in": [
+                {
+                  "lane": "upper",
+                  "roundIndex": 2,
+                  "matchIndex": 0
+                },
+                {
+                  "lane": "lower",
+                  "roundIndex": 3,
+                  "matchIndex": 0
+                }
               ],
               "out": []
             }
