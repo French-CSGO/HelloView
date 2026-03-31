@@ -534,12 +534,22 @@ body {
 
 .stats-table tbody tr.player-row {
   cursor: pointer;
+  height: 52px;
 }
 
 .player-cell {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.player-avatar {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .team-cell {
