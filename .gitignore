@@ -3,5 +3,6 @@ node_modules/
 *.log
 inspect-result.txt
 db-export.json
-data/
+data/*
+!data/brackets.json
 uploads/
