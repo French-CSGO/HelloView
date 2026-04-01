@@ -534,7 +534,6 @@ body {
 
 .stats-table tbody tr.player-row {
   cursor: pointer;
-  height: 52px;
 }
 
 .player-cell {
