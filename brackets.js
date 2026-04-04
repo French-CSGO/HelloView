@@ -296,9 +296,9 @@
     const w = (m.winner || '').trim();
     if (w) {
       const loser = normName(a) === normName(w) ? b : a;
-      return [w, loser || '—'];
+      return [w, loser || '—', true];
     }
-    return [a || '—', b || '—'];
+    return [a || '—', b || '—', false];
   }
 
   const SWISS_SLOT_HEIGHT = 52;
@@ -787,9 +787,9 @@
           slotEl.className = 'swiss-slot';
           slotEl.style.height = SWISS_SLOT_HEIGHT + 'px';
           if (m) {
-            const [winner, loser] = getWinnerLoser(m);
+            const [winner, loser, hasWinner] = getWinnerLoser(m);
             const cell = document.createElement('div');
-            cell.className = 'match-cell' + (canEditBrackets() ? ' admin' : '');
+            cell.className = 'match-cell' + (canEditBrackets() ? ' admin' : '') + (hasWinner ? ' has-winner' : '');
             cell.dataset.tournamentId = tournament.id;
             cell.dataset.lane = 'swiss';
             cell.dataset.roundIndex = String(ri);
@@ -871,11 +871,11 @@
       col.innerHTML = '<div class="bracket-round-title">' + escapeHtml(rt) + '</div><div class="bracket-round-matches"></div>';
       const matchContainer = col.querySelector('.bracket-round-matches');
       (round.matches || []).forEach((m, mi) => {
-        const [winner, loser] = getWinnerLoser(m);
+        const [winner, loser, hasWinner] = getWinnerLoser(m);
         const wrap = document.createElement('div');
         wrap.className = 'bracket-match-wrap';
         const cell = document.createElement('div');
-        cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '');
+        cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '') + (hasWinner ? ' has-winner' : '');
         cell.dataset.tournamentId = tournament.id;
         cell.dataset.lane = lane;
         cell.dataset.roundIndex = String(ri);
@@ -930,11 +930,11 @@
     inner.innerHTML = '<div class="bracket-round-title bracket-round-grand-final">' + escapeHtml(gtitle) + '</div><div class="bracket-round-matches"></div>';
     const matchContainer = inner.querySelector('.bracket-round-matches');
     (gf.matches || []).forEach((m, mi) => {
-      const [winner, loser] = getWinnerLoser(m);
+      const [winner, loser, hasWinner] = getWinnerLoser(m);
       const wrap = document.createElement('div');
       wrap.className = 'bracket-match-wrap';
       const cell = document.createElement('div');
-      cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '');
+      cell.className = 'bracket-match' + (canEditBrackets() ? ' admin' : '') + (hasWinner ? ' has-winner' : '');
       cell.dataset.tournamentId = tournament.id;
       cell.dataset.lane = 'grand';
       cell.dataset.roundIndex = '0';

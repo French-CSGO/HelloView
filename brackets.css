@@ -914,7 +914,7 @@ body.brackets-page .footer {
   line-height: 1.25;
 }
 
-.match-cell .match-winner { color: var(--green); }
+.match-cell.has-winner .match-winner { color: var(--green); }
 
 .match-cell .match-loser { color: var(--red-muted); }
 
@@ -1342,7 +1342,7 @@ body.brackets-page .footer {
   line-height: 1.25;
 }
 
-.bracket-match .match-winner { color: var(--green); }
+.bracket-match.has-winner .match-winner { color: var(--green); }
 
 .bracket-match .match-loser { color: var(--text-muted); }
 
