@@ -648,8 +648,8 @@ app.get('/api/stats', async (req, res) => {
         LEFT JOIN team tw_s ON tw_s.id = m.winner
         JOIN team t1 ON t1.id = m.team1_id
         JOIN team t2 ON t2.id = m.team2_id
-        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
-        ORDER BY m.end_time ASC, m.id, ms.map_number
+        WHERE m.cancelled = 0 AND ms.end_time IS NOT NULL ${seasonWhere}
+        ORDER BY COALESCE(m.end_time, NOW()) ASC, m.id, ms.map_number
       `, seasonParams),
       pool.query(`
         SELECT
@@ -679,7 +679,7 @@ app.get('/api/stats', async (req, res) => {
         JOIN team t       ON t.id  = ps.team_id
         JOIN map_stats ms ON ms.id = ps.map_id
         JOIN \`match\` m  ON m.id  = ps.match_id
-        WHERE m.cancelled = 0 AND m.end_time IS NOT NULL ${seasonWhere}
+        WHERE m.cancelled = 0 AND ms.end_time IS NOT NULL ${seasonWhere}
         ORDER BY m.id, ms.map_number, ps.steam_id
       `, seasonParams)
     ]);
