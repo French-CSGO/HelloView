@@ -298,6 +298,26 @@
       const loser = normName(a) === normName(w) ? b : a;
       return [w, loser || '—', true];
     }
+    // Fall back to DB data when m.winner is not set
+    const ids = getMatchDemoIds(m);
+    const bo = getMatchBestOf(m);
+    if (bo > 1 && ids.length) {
+      // BO3/BO5: determine winner from series map wins
+      const need = Math.ceil(bo / 2);
+      const { winsA, winsB } = countSeriesMaps(a, b, ids, getMatchesFromDb());
+      if (winsA >= need) return [a || '—', b || '—', true];
+      if (winsB >= need) return [b || '—', a || '—', true];
+    } else if (ids.length) {
+      // BO1: determine winner from map score
+      const dbRow = (getMatchesFromDb() || []).find((x) => x.id === ids[0]);
+      const sa = dbRow ? dbRow.team_a_score : null;
+      const sb = dbRow ? dbRow.team_b_score : null;
+      if (sa != null && sb != null && sa !== sb) {
+        const winner = sa > sb ? a : b;
+        const loser = sa > sb ? b : a;
+        return [winner || '—', loser || '—', true];
+      }
+    }
     return [a || '—', b || '—', false];
   }
 
